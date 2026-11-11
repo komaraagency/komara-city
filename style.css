@@ -138,7 +138,7 @@ h1 { margin: 0.3rem 0 0.4rem; font-size: 3rem; line-height: 0.98; font-weight: 9
 
 #info {
   position: absolute; left: 50%; bottom: 8.4rem; transform: translateX(-50%);
-  width: min(430px, 94vw); background: rgba(10, 18, 24, 0.95); border: 1px solid var(--bord);
+  width: min(330px, 82vw); background: rgba(10, 18, 24, 0.93); border: 1px solid var(--bord);
   border-radius: 1rem; padding: 0.7rem 0.9rem; z-index: 15; display: flex; flex-direction: column; gap: 0.3rem;
 }
 #info b { font-size: 1rem; color: var(--jaune); }
@@ -183,7 +183,7 @@ h1 { margin: 0.3rem 0 0.4rem; font-size: 3rem; line-height: 0.98; font-weight: 9
   .bat { flex-basis: 4rem; }
   .bat canvas { height: 2.1rem; }
   .onglet { padding: 0.2rem 0.55rem; font-size: 0.7rem; }
-  #info { bottom: 6.6rem; }
+  #info { bottom: 6.2rem; width: min(300px, 62vw); padding: 0.55rem 0.7rem; }
 }
 
 #a-reprise { color: #9fe0a8; font-weight: 600; }

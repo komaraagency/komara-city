@@ -752,23 +752,16 @@
   }
 
   function dessinerTrottoir(ctx, x, y) {
-    const bordN = !!(G(x, y - 1) && G(x, y - 1).cle === "trottoir");
-    const bordS = !!(G(x, y + 1) && G(x, y + 1).cle === "trottoir");
-    losange(ctx, 0, -3, TW * 0.96, TH * 0.96, "#b8b09c");
-    losange(ctx, 0, -4.5, TW * 0.74, TH * 0.74, "#c8c1ad");
-    ctx.strokeStyle = "rgba(148,141,124,0.6)";
+    // meme gabarit que la route : une seule dalle a plat, bordure fine
+    losange(ctx, 0, 0, TW * 0.92, TH * 0.92, "#b9b29c");
+    losange(ctx, 0, 0, TW * 0.80, TH * 0.80, "#c9c2ac");
+    ctx.strokeStyle = "rgba(150,143,126,0.5)";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(-TW * 0.24, -4.5 - TH * 0.24);
-    ctx.lineTo(TW * 0.24, -4.5 + TH * 0.24);
-    ctx.moveTo(TW * 0.24, -4.5 - TH * 0.24);
-    ctx.lineTo(-TW * 0.24, -4.5 + TH * 0.24);
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255,252,240,0.45)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    if (!bordN) { ctx.moveTo(0, -TH / 2 - 3); ctx.lineTo(TW / 2, -3); }
-    if (!bordS) { ctx.moveTo(-TW / 2, -3); ctx.lineTo(0, TH / 2 - 3); }
+    ctx.moveTo(-TW * 0.20, -TH * 0.20);
+    ctx.lineTo(TW * 0.20, TH * 0.20);
+    ctx.moveTo(TW * 0.20, -TH * 0.20);
+    ctx.lineTo(-TW * 0.20, TH * 0.20);
     ctx.stroke();
   }
 
@@ -1797,13 +1790,9 @@
     if (etat.gomme) { if (b) demolir(b); else bulle("Rien à démolir ici"); return; }
     if (b && b.cle !== "route") { ouvrirInfo(b); return; }
     fermerInfo();
-    if (b && b.cle === "route" && etat.choix !== "route" && etat.choix !== "rail" && etat.choix !== "pont") {
-      const m = CAT[etat.choix];
-      // on tente juste à côté, comme le font les jeux de gestion
-      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
-        if (!peutPoser(etat.choix, c.x + dx, c.y + dy)) { poser(etat.choix, c.x + dx, c.y + dy); return; }
-      }
-      bulle("La place est prise ici");
+    if (b && (b.cle === "route" || b.cle === "trottoir" || b.cle === "rondPoint") &&
+        etat.choix !== "route" && etat.choix !== "rail" && etat.choix !== "trottoir" && etat.choix !== "pont") {
+      bulle("Ici c'est la voie. Touche une case libre juste à côté.");
       return;
     }
     poser(etat.choix, c.x, c.y);
