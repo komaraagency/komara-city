@@ -14,12 +14,14 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
+  // La monnaie est le franc guineen. Les prix internes restent en "unites",
+  // l'affichage les convertit : 1 unite = 1 000 GNF.
+  const GNF = 1000;
   const fmt = (n) => {
-    n = Math.floor(n);
-    if (n >= 1e9) return (n / 1e9).toFixed(1) + " Md";
-    if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + " M";
-    if (n >= 1e4) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + " k";
-    return String(n);
+    const v = Math.floor(n * GNF);
+    if (v >= 1e9) return (v / 1e9).toFixed(2).replace(".", ",") + " Md GNF";
+    const t = String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return t + " GNF";
   };
 
   /* ------------------------------ monde ------------------------------ */
@@ -29,6 +31,7 @@
   const SAVE_ANCIENNES = ["komara-city-v2", "komara-city-v1"];
 
   function typeSol(x, y) {
+    if (etat.eau && etat.eau.has(x + "," + y)) return 2;
     const d = x + y;
     if (d >= N + 10) return 2;
     if (d >= N + 6) return 1;
@@ -44,6 +47,8 @@
     rail:       { nom: "Chemin de fer",cout: 22,   rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "rail" },
     trottoir:   { nom: "Trottoir",     cout: 5,    rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "trottoir" },
     pont:       { nom: "Pont",         cout: 140,  rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "pont" },
+    canal:      { nom: "Canal d'eau",  cout: 30,   rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "canal" },
+    viaduc:     { nom: "Viaduc (route dessous)", cout: 260, rev: 0, w: 1, h: 1, onglet: "route", niv: 2, type: "viaduc" },
     rondPoint:  { nom: "Rond-point",   cout: 320,  rev: 1,    w: 1, h: 1, onglet: "route",    niv: 2, type: "rond" },
 
     /* --- habitat --- */
@@ -86,6 +91,15 @@
     gare:       { nom: "Gare",         cout: 2800, rev: 34,   w: 2, h: 1, onglet: "services", niv: 4, bonheur: 6,  drapeau: true, teinte: ["#d9cdb3", "#3b6fb3"] },
     aeroport:   { nom: "Aéroport",     cout: 6800, rev: 70,   w: 3, h: 2, onglet: "services", niv: 6, bonheur: 10, drapeau: true, teinte: ["#e6e8ea", "#5b6570"] },
     mine:       { nom: "Mine",         cout: 2600, rev: 0,    w: 2, h: 2, onglet: "services", niv: 4, minerai: 26, drapeau: true, teinte: ["#8a7358", "#5c4a34"] },
+    mosquee:    { nom: "Mosquée",      cout: 1500, rev: 4,    w: 1, h: 1, onglet: "services", niv: 2, bonheur: 16, culte: true, drapeau: true, teinte: ["#f4efe0", "#0f7a4a"] },
+    eglise:     { nom: "Église",       cout: 1400, rev: 4,    w: 1, h: 1, onglet: "services", niv: 2, bonheur: 15, culte: true, teinte: ["#f6f2e8", "#7d5a3a"] },
+    campMil:    { nom: "Camp militaire",cout: 3600, rev: 0,   w: 2, h: 2, onglet: "services", niv: 4, bonheur: 14, drapeau: true, teinte: ["#6f7a4a", "#4a5230"] },
+    centrale:   { nom: "Centrale",     cout: 2900, rev: 0,    w: 2, h: 2, onglet: "services", niv: 3, energie: 40, teinte: ["#c9ccc4", "#7d8478"] },
+    eolienne:   { nom: "Éolienne",     cout: 900,  rev: 0,    w: 1, h: 1, onglet: "services", niv: 2, energie: 8, teinte: ["#f2f4f2", "#9aa39a"] },
+    piscine:    { nom: "Piscine",      cout: 700,  rev: 6,    w: 1, h: 1, onglet: "loisirs",  niv: 2, bonheur: 12, teinte: ["#2a9bd1", "#bfe6f2"] },
+    basket:     { nom: "Terrain basket",cout: 420, rev: 3,    w: 1, h: 1, onglet: "loisirs",  niv: 1, bonheur: 9, teinte: ["#c98a4a", "#e8e2d2"] },
+    bibliotheque:{ nom: "Bibliothèque",cout: 900,  rev: 5,    w: 1, h: 1, onglet: "services", niv: 2, bonheur: 13, drapeau: true, teinte: ["#eae3d0", "#8a6a45"] },
+    phare:      { nom: "Phare",        cout: 1200, rev: 9,    w: 1, h: 1, onglet: "plage",    niv: 2, bonheur: 6, plage: true, teinte: ["#f4f4ee", "#c8302f"] },
   };
 
   const ONGLETS = [
@@ -103,6 +117,16 @@
     grille: new Array(N * N).fill(null),
     histo: [],
     rails: new Set(),
+    itineraire: [],
+    alertes: [],
+    unites: [],
+    prochaineAlerte: 26,
+    calme: 0,
+    interventions: 0,
+    eau: new Set(),          // canaux / rivieres traces par le joueur
+    viaducs: new Set(),      // ponts aeriens au-dessus des routes
+    traficHaut: [],          // vehicules qui roulent sur les viaducs
+    jourFixe: true,          // le joueur reste en pleine journee
     batiments: [],
     choix: "route",
     onglet: "route",
@@ -290,6 +314,8 @@
     ctx.beginPath(); ctx.arc(x, y - 13, 1.5, 0, 6.283); ctx.fill();
   }
 
+  function regenererSol() { genererSol(); }
+
   /* ------------------------------ bâtiments ------------------------------ */
   function dessinerBatiment(ctx, cle, niv, t, gw, gh) {
     const m = CAT[cle];
@@ -405,6 +431,160 @@
         for (let i = 0; i < 5; i++) {
           ctx.fillStyle = Math.floor(t * 3 + i) % 5 === 0 ? "#fff2a8" : "#5a5f6b";
           ctx.beginPath(); ctx.arc(-10 + i * 5, -6, 1.3, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      case "mosquee": {
+        prisme(ctx, 0, 0, W * 0.84, Hh * 0.84, 16, eclaircir(c1, -0.02), eclaircir(c1, -0.17), eclaircir(c1, 0.12));
+        // dome vert
+        ctx.fillStyle = "#0f8a52";
+        ctx.beginPath(); ctx.arc(0, -17, W * 0.2, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = "#0c6f42";
+        ctx.beginPath(); ctx.arc(0, -17, W * 0.2, Math.PI, Math.PI * 1.5); ctx.fill();
+        // minaret
+        ctx.fillStyle = eclaircir(c1, 0.1);
+        ctx.fillRect(-W * 0.38, -34, 6, 34);
+        ctx.fillStyle = "#0f8a52";
+        ctx.beginPath(); ctx.arc(-W * 0.38 + 3, -34, 3.6, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = "#f5cf1b";
+        ctx.beginPath(); ctx.arc(-W * 0.38 + 3, -39, 1.4, 0, 6.283); ctx.fill();
+        // porte
+        ctx.fillStyle = "#2e5f3e";
+        ctx.beginPath(); ctx.arc(0, 4, 5, Math.PI, 0); ctx.fill(); ctx.fillRect(-5, 4, 10, 5);
+        break;
+      }
+      case "eglise": {
+        prisme(ctx, 0, 0, W * 0.8, Hh * 0.8, 14, eclaircir(c1, -0.02), eclaircir(c1, -0.16), "#8a5a3a");
+        // clocher
+        ctx.fillStyle = eclaircir(c1, 0.08);
+        ctx.fillRect(W * 0.16, -40, 12, 40);
+        ctx.fillStyle = "#7d5a3a";
+        ctx.beginPath(); ctx.moveTo(W * 0.16 - 2, -40); ctx.lineTo(W * 0.16 + 6, -52); ctx.lineTo(W * 0.16 + 14, -40); ctx.closePath(); ctx.fill();
+        // croix
+        ctx.fillStyle = "#f5cf1b";
+        ctx.fillRect(W * 0.16 + 5, -60, 2, 9); ctx.fillRect(W * 0.16 + 2, -58, 8, 2);
+        // vitrail
+        ctx.fillStyle = nuit ? "rgba(255,226,130,0.9)" : "rgba(120,80,200,0.7)";
+        ctx.beginPath(); ctx.arc(-6, -10, 4, Math.PI, 0); ctx.fill();
+        break;
+      }
+      case "campMil": {
+        losange(ctx, 0, 0, W * 0.98, Hh * 0.98, "#6f7a4a");
+        losange(ctx, 0, 0, W * 0.7, Hh * 0.7, "#7d8854");
+        // tentes
+        for (const [ox, oy] of [[-14, 2], [0, 8], [12, -2]]) {
+          ctx.fillStyle = "#4a5230";
+          ctx.beginPath(); ctx.moveTo(ox - 8, oy); ctx.lineTo(ox, oy - 9); ctx.lineTo(ox + 8, oy); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = "#5d6739";
+          ctx.beginPath(); ctx.moveTo(ox - 8, oy); ctx.lineTo(ox, oy - 9); ctx.lineTo(ox, oy); ctx.closePath(); ctx.fill();
+        }
+        // mirador
+        ctx.fillStyle = "#4a5230"; ctx.fillRect(-2, -46, 3, 40); ctx.fillRect(2, -46, 3, 40);
+        ctx.fillStyle = "#5d6739"; ctx.fillRect(-6, -54, 16, 9);
+        // barbeles
+        ctx.strokeStyle = "rgba(230,230,220,0.5)"; ctx.lineWidth = 1;
+        for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(i * 11, 14); ctx.lineTo(i * 11 + 6, 8); ctx.stroke(); }
+        // jeep
+        ctx.fillStyle = "#3d4528"; ctx.fillRect(10, 10, 15, 7);
+        ctx.fillStyle = "#2b3120"; ctx.fillRect(12, 11, 5, 4);
+        break;
+      }
+      case "centrale": {
+        prisme(ctx, 0, 0, W * 0.92, Hh * 0.84, 20, "#c9ccc4", "#9aa096", "#8d948a");
+        // cheminees
+        for (const ox of [-12, 4]) {
+          ctx.fillStyle = "#d7dad2"; ctx.fillRect(ox, -46, 8, 46);
+          ctx.fillStyle = "#b3452f"; ctx.fillRect(ox, -46, 8, 5);
+          ctx.fillStyle = "#8d948a"; ctx.fillRect(ox, -30, 8, 3);
+        }
+        // fumee
+        ctx.fillStyle = "rgba(230,236,240,0.5)";
+        for (let i = 0; i < 4; i++) {
+          const f = (t * 0.5 + i * 0.25) % 1;
+          ctx.beginPath(); ctx.arc(-8 + f * 22, -50 - f * 26, 4 + f * 7, 0, 6.283); ctx.fill();
+        }
+        // lignes electriques
+        ctx.strokeStyle = "#5a615a"; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(-W * 0.42, -16); ctx.lineTo(-W * 0.42, 0); ctx.stroke();
+        break;
+      }
+      case "eolienne": {
+        losange(ctx, 0, 0, W * 0.9, Hh * 0.9, "#8aa06a");
+        ctx.fillStyle = "#e8ece8"; ctx.fillRect(-1.6, -48, 3.2, 48);
+        ctx.fillStyle = "#cfd6cf"; ctx.fillRect(-1.6, -48, 1.6, 48);
+        ctx.save(); ctx.translate(0, -48); ctx.rotate(t * 1.6);
+        for (let i = 0; i < 3; i++) {
+          ctx.save(); ctx.rotate((i * 6.283) / 3);
+          ctx.fillStyle = "#f2f6f2";
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(2.2, -3); ctx.lineTo(2.2, -22); ctx.lineTo(0, -24); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+        ctx.fillStyle = "#cfd6cf"; ctx.beginPath(); ctx.arc(0, 0, 2.6, 0, 6.283); ctx.fill();
+        ctx.restore();
+        break;
+      }
+      case "piscine": {
+        losange(ctx, 0, 0, W * 0.98, Hh * 0.98, "#d9d2be");
+        losange(ctx, 0, 0, W * 0.78, Hh * 0.78, "#2a9bd1");
+        losange(ctx, 0, 0, W * 0.66, Hh * 0.66, "#48b6e4");
+        ctx.strokeStyle = "rgba(255,255,255,0.65)"; ctx.lineWidth = 1;
+        for (let i = -1; i <= 1; i++) {
+          ctx.beginPath();
+          ctx.moveTo(-W * 0.22, i * 5 - Math.sin(t * 2 + i) * 1.4);
+          ctx.lineTo(W * 0.22, i * 5 + Math.sin(t * 2 + i) * 1.4);
+          ctx.stroke();
+        }
+        // tremplin
+        ctx.fillStyle = "#f2f2ea"; ctx.fillRect(W * 0.28, -6, 10, 3);
+        break;
+      }
+      case "basket": {
+        losange(ctx, 0, 0, W * 0.98, Hh * 0.98, "#c98a4a");
+        losange(ctx, 0, 0, W * 0.72, Hh * 0.72, "#d99a58");
+        ctx.strokeStyle = "#f6f2e6"; ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-W * 0.34, 0); ctx.lineTo(W * 0.34, 0); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, W * 0.14, 0, 6.283); ctx.stroke();
+        // paniers
+        for (const s2 of [-1, 1]) {
+          ctx.fillStyle = "#e8e2d2";
+          ctx.fillRect(s2 * W * 0.42 - 2, -26, 3, 26);
+          ctx.fillStyle = "#f6f6f2"; ctx.fillRect(s2 * W * 0.42 - 7, -28, 12, 7);
+          ctx.strokeStyle = "#e8563a"; ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.arc(s2 * W * 0.42 - 1, -22, 3.4, 0, Math.PI); ctx.stroke();
+        }
+        break;
+      }
+      case "bibliotheque": {
+        prisme(ctx, 0, 0, W * 0.88, Hh * 0.88, 18, eclaircir(c1, -0.02), eclaircir(c1, -0.16), eclaircir(c1, 0.06));
+        // colonnes
+        ctx.fillStyle = eclaircir(c1, 0.18);
+        for (let i = -2; i <= 2; i++) ctx.fillRect(i * 7 - 1, -16, 2.4, 16);
+        // fronton
+        ctx.fillStyle = "#c9b98a";
+        ctx.beginPath(); ctx.moveTo(-W * 0.34, -18); ctx.lineTo(0, -30); ctx.lineTo(W * 0.34, -18); ctx.closePath(); ctx.fill();
+        break;
+      }
+      case "phare": {
+        losange(ctx, 0, 0, W * 0.9, Hh * 0.9, "#e8d9a8");
+        // tour rayee
+        for (let i = 0; i < 5; i++) {
+          ctx.fillStyle = i % 2 ? "#c8302f" : "#f4f4ee";
+          const w2 = 9 - i * 1.2;
+          ctx.fillRect(-w2 / 2, -8 - i * 11, w2, 11);
+        }
+        // lanterne
+        ctx.fillStyle = "#f5cf1b";
+        ctx.beginPath(); ctx.arc(0, -62, 4.2, 0, 6.283); ctx.fill();
+        if (nuit) {
+          ctx.globalAlpha = 0.35;
+          ctx.beginPath(); ctx.arc(0, -62, 16, 0, 6.283); ctx.fill();
+          ctx.globalAlpha = 1;
+          // faisceau tournant
+          ctx.save(); ctx.translate(0, -62); ctx.rotate(t * 1.2);
+          ctx.fillStyle = "rgba(255,240,180,0.22)";
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(48, -9); ctx.lineTo(48, 9); ctx.closePath(); ctx.fill();
+          ctx.restore();
         }
         break;
       }
@@ -889,6 +1069,21 @@
 
   function peutPoser(cle, x, y) {
     const m = CAT[cle];
+    if (cle === "viaduc") {
+      if (x < 0 || y < 0 || x >= N || y >= N) return "Hors de la ville";
+      if (etat.viaducs.has(x + "," + y)) return "Un viaduc est déjà là";
+      const dessous = G(x, y);
+      if (!dessous || (dessous.cle !== "route" && dessous.cle !== "rondPoint" && dessous.cle !== "pont"))
+        return "Le viaduc se pose au-dessus d'une route : trace la route d'abord";
+      return null;
+    }
+    if (cle === "canal") {
+      if (x < 0 || y < 0 || x >= N || y >= N) return "Hors de la ville";
+      if (etat.eau.has(x + "," + y)) return "Il y a deja de l'eau";
+      if (G(x, y)) return "Case occupée";
+      if (typeSol(x, y) === 2) return "C'est deja la mer";
+      return null;
+    }
     if (cle === "rail") {
       if (x < 0 || y < 0 || x >= N || y >= N) return "Hors de la ville";
       if (etat.rails.has(x + "," + y)) return "Rail déjà posé";
@@ -940,8 +1135,26 @@
     const refus = peutPoser(cle, x, y);
     if (refus) { if (!silence) { bulle(refus); son(180, 0.12, "square", 0.05); } return false; }
     empilerHisto();
-    if (etat.argent < m.cout) { etat.histo.pop(); if (!silence) { bulle("Il te manque " + fmt(m.cout - etat.argent) + " $"); son(180, 0.12, "square", 0.05); } return false; }
+    if (etat.argent < m.cout) { etat.histo.pop(); if (!silence) { bulle("Il te manque " + fmt(m.cout - etat.argent)); son(180, 0.12, "square", 0.05); } return false; }
     etat.argent -= m.cout;
+    if (cle === "viaduc") {
+      etat.viaducs.add(x + "," + y);
+      majTraficHaut();
+      son(360, 0.12, "sine", 0.05);
+      etat.modifie = true; sauver();
+      const pv = iso(x, y);
+      flottant("-" + fmt(m.cout), pv.x, pv.y - 10, "#ffd2da");
+      return true;
+    }
+    if (cle === "canal") {
+      etat.eau.add(x + "," + y);
+      regenererSol();
+      son(420, 0.12, "sine", 0.05);
+      etat.modifie = true; sauver();
+      const pc = iso(x, y);
+      flottant("-" + fmt(m.cout), pc.x, pc.y - 10, "#ffd2da");
+      return true;
+    }
     if (cle === "rail") {
       etat.rails.add(x + "," + y);
       etat.argentLock = 0;
@@ -964,6 +1177,28 @@
     flottant("-" + fmt(m.cout), p.x, p.y - 10, "#ffd2da");
     if (cle === "rail") majTrain();
     return true;
+  }
+
+  function retirerViaduc(x, y) {
+    const k = x + "," + y;
+    if (!etat.viaducs.has(k)) return;
+    empilerHisto();
+    etat.viaducs.delete(k);
+    etat.argent += Math.round(CAT.viaduc.cout * 0.5);
+    majTraficHaut(); etat.modifie = true; sauver();
+    const p = iso(x, y);
+    flottant("+" + fmt(Math.round(CAT.viaduc.cout * 0.5)), p.x, p.y - 10, "#9fe0a8");
+  }
+
+  function retirerEau(x, y) {
+    const k = x + "," + y;
+    if (!etat.eau.has(k)) return;
+    empilerHisto();
+    etat.eau.delete(k);
+    etat.argent += Math.round(CAT.canal.cout * 0.5);
+    regenererSol(); etat.modifie = true; sauver();
+    const p = iso(x, y);
+    flottant("+" + fmt(Math.round(CAT.canal.cout * 0.5)), p.x, p.y - 10, "#9fe0a8");
   }
 
   function retirerRail(x, y) {
@@ -999,6 +1234,261 @@
     flottant("+" + fmt(b.total * 0.5), p.x, p.y - 10, "#9fe0a8");
   }
 
+
+  /* ------------------------------ alertes et secours ------------------------------ */
+  const ALERTES = {
+    braquage: { nom: "Braquage", ico: "🥷", unite: "police", duree: 60, gain: 190 },
+    vol: { nom: "Vol", ico: "🕵️", unite: "police", duree: 55, gain: 130 },
+    incendie: { nom: "Incendie", ico: "🔥", unite: "pompier", duree: 48, gain: 280 },
+    accident: { nom: "Accident", ico: "🚑", unite: "ambulance", duree: 42, gain: 210 },
+  };
+  const VOIES = ["route", "trottoir", "rondPoint", "pont", "rail"];
+
+  function aBatiment(cle) { return etat.batiments.some((b) => b.cle === cle); }
+
+  function majAlertes(dt) {
+    if (etat.ecran !== "jeu") return;
+    for (const a of etat.alertes) { a.t += dt; }
+    // une alerte non traitee finit par couter cher
+    for (const a of etat.alertes) {
+      if (!a.envoyee && a.t > a.duree) {
+        a.t = 0; a.envoyee = true; a.echec = true;
+        etat.bonheur = clamp(etat.bonheur - 3, 0, 100);
+        bulle("Alerte non traitée : " + ALERTES[a.type].nom + " (-3 bonheur)");
+      }
+    }
+    etat.alertes = etat.alertes.filter((a) => !a.fini);
+    if (etat.alertes.length >= 2) return;
+    etat.prochaineAlerte -= dt;
+    if (etat.prochaineAlerte > 0) return;
+    etat.prochaineAlerte = 24 + Math.random() * 22;
+
+    const possibles = [];
+    if (aBatiment("commissariat")) possibles.push("braquage", "vol");
+    if (aBatiment("pompiers")) possibles.push("incendie");
+    if (aBatiment("hopital")) possibles.push("accident");
+    if (!possibles.length) return;
+    const cibles = etat.batiments.filter((b) => VOIES.indexOf(b.cle) < 0);
+    if (!cibles.length) return;
+    const type = possibles[(Math.random() * possibles.length) | 0];
+    const c = cibles[(Math.random() * cibles.length) | 0];
+    etat.alertes.push({ type, x: c.x, y: c.y, t: 0, duree: ALERTES[type].duree, unite: ALERTES[type].unite, envoyee: false });
+    son(880, 0.18, "square", 0.05);
+  }
+
+  function uniteDispo(type) {
+    const u = etat.unites.find((x) => x.type === type && !x.mission);
+    return u || null;
+  }
+
+  function deployer() {
+    const a = etat.alertes.find((x) => !x.envoyee) || etat.alertes[0];
+    if (!a) { bulle("Aucune alerte en cours"); return; }
+    const u = uniteDispo(a.unite);
+    if (!u) { bulle("Aucune unité disponible : construis le bâtiment adapté"); return; }
+    a.envoyee = true;
+    u.mission = a;
+    u.gx = u.x; u.gy = u.y;
+    u.tx = a.x; u.ty = a.y;
+    u.sirene = 1;
+    son(620, 0.22, "sawtooth", 0.07);
+    bulle(ALERTES[a.type].nom + " : unité déployée 🚨");
+  }
+
+  function majUnites(dt) {
+    // patrouilles : police et pompiers dans les rues des qu'ils existent
+    const veut = [];
+    if (aBatiment("commissariat")) veut.push("police");
+    if (aBatiment("pompiers")) veut.push("pompier");
+    if (aBatiment("hopital")) veut.push("ambulance");
+    for (const t of veut) {
+      if (!etat.unites.some((u) => u.type === t)) {
+        // depart depuis le batiment d'origine
+        const src = etat.batiments.find((b) => b.cle === (t === "police" ? "commissariat" : t === "pompier" ? "pompiers" : "hopital"));
+        if (src) etat.unites.push({ type: t, x: src.x, y: src.y, gx: src.x, gy: src.y, tx: src.x, ty: src.y, t: 0, mission: null, sirene: 0, ang: 0 });
+      }
+    }
+    for (const u of etat.unites) {
+      if (u.mission) {
+        const a = u.mission;
+        const d = Math.hypot(a.x - u.gx, a.y - u.gy);
+        if (d > 0.25) {
+          const v = dt * 7.5;
+          const ang = Math.atan2(a.y - u.gy, a.x - u.gx);
+          u.gx += Math.cos(ang) * Math.min(v, d);
+          u.gy += Math.sin(ang) * Math.min(v, d);
+          u.ang = ang;
+          u.sirene = 1;
+        } else {
+          // sur place : on eteint le sinistre
+          u.intervient = (u.intervient || 0) + dt;
+          u.sirene = 0.6;
+          if (u.intervient > 1.8) {
+            a.fini = true;
+            etat.alerteResolue = { type: a.type, x: a.x, y: a.y, t: 0 };
+            const g = ALERTES[a.type].gain;
+            etat.argent += g;
+            etat.interventions += 1;
+            gagnerXp(8);
+            const p = iso(a.x + 0.5, a.y + 0.5);
+            flottant("+" + fmt(g), p.x, p.y - 16, "#9fe0a8");
+            bulle("Menace gérée : " + ALERTES[a.type].nom + " ✔️ Retour au calme");
+            son(520, 0.2, "triangle", 0.07);
+            u.mission = null; u.intervient = 0; u.sirene = 0;
+            etat.calme = 4;
+            etat.modifie = true; sauver();
+          }
+        }
+      } else {
+        // patrouille : avance au hasard sur les rues avoisinantes
+        u.sirene = Math.max(0, u.sirene - dt);
+        u.pat = (u.pat || 0) - dt;
+        if (u.pat <= 0) {
+          u.pat = 2.5 + Math.random() * 3;
+          const rs = etat.batiments.filter((b) => b.cle === "route" || b.cle === "rondPoint");
+          if (rs.length) {
+            const r = rs[(Math.random() * rs.length) | 0];
+            u.tx = r.x; u.ty = r.y;
+          }
+        }
+        const dx = u.tx - u.gx, dy = u.ty - u.gy;
+        const d = Math.hypot(dx, dy);
+        if (d > 0.15) {
+          const v = dt * 3.2;
+          u.ang = Math.atan2(dy, dx);
+          u.gx += (dx / d) * Math.min(v, d);
+          u.gy += (dy / d) * Math.min(v, d);
+          if (Math.random() < dt * 0.35) u.sirene = 1.2;
+        }
+      }
+      u.t += dt;
+    }
+    if (etat.alerteResolue) etat.alerteResolue.t += dt;
+    if (etat.calme > 0) etat.calme -= dt;
+  }
+
+  function majBanniereAlerte() {
+    const zone = $("#alertes");
+    if (!zone) return;
+    const a = etat.alertes.filter((x) => !x.fini)[0];
+    if (!a || etat.ecran !== "jeu") { zone.classList.add("cache"); return; }
+    zone.classList.remove("cache");
+    $("#alerte-ico").textContent = ALERTES[a.type].ico;
+    $("#alerte-txt").textContent = ALERTES[a.type].nom + " · " + Math.max(0, Math.ceil(a.duree - a.t)) + "s";
+    $("#btn-deployer").textContent = a.envoyee ? "En route…" : "Déployer";
+    $("#btn-deployer").disabled = !!a.envoyee;
+  }
+
+
+  /* ------------------------------ viaducs ------------------------------ */
+  const HAUT = 18; // hauteur du tablier au-dessus de la route
+
+  function cheminViaduc() {
+    const pts = [...etat.viaducs].map((k) => {
+      const [x, y] = k.split(",").map(Number);
+      return { x, y };
+    });
+    if (pts.length < 2) return pts;
+    // ordre continu : on part du premier et on avance de proche en proche
+    const reste = pts.slice(1);
+    const ordre = [pts[0]];
+    while (reste.length) {
+      const d = ordre[ordre.length - 1];
+      let bi = 0, bd = 1e9;
+      for (let i = 0; i < reste.length; i++) {
+        const dd = Math.abs(reste[i].x - d.x) + Math.abs(reste[i].y - d.y);
+        if (dd < bd) { bd = dd; bi = i; }
+      }
+      if (bd > 6) break;
+      ordre.push(reste.splice(bi, 1)[0]);
+    }
+    return ordre;
+  }
+
+  function majTraficHaut() {
+    const ch = cheminViaduc();
+    etat.cheminHaut = ch;
+    if (ch.length < 2) { etat.traficHaut = []; return; }
+    const n = Math.min(5, Math.max(1, Math.floor(ch.length / 2)));
+    while (etat.traficHaut.length > n) etat.traficHaut.pop();
+    while (etat.traficHaut.length < n) {
+      etat.traficHaut.push({
+        p: Math.random() * (ch.length - 1),
+        sens: Math.random() < 0.5 ? 1 : -1,
+        v: 1.1 + Math.random() * 0.8,
+        coul: ["#e8e2d2", "#2f6fd0", "#c8302f", "#f5cf1b", "#2a9d5c", "#8a8f98"][(Math.random() * 6) | 0],
+      });
+    }
+  }
+
+  function majTraficHautBouge(dt) {
+    const ch = etat.cheminHaut;
+    if (!ch || ch.length < 2) return;
+    for (const v of etat.traficHaut) {
+      v.p += dt * v.v * v.sens;
+      if (v.p >= ch.length - 1) { v.p = ch.length - 1; v.sens = -1; }
+      if (v.p <= 0) { v.p = 0; v.sens = 1; }
+    }
+  }
+
+  function dessinerViaducs() {
+    const ch = etat.cheminHaut || cheminViaduc();
+    if (!ch.length) return;
+    // piliers
+    for (const c of ch) {
+      const p = iso(c.x, c.y);
+      ctx.fillStyle = "#8d8f8a";
+      ctx.fillRect(p.x - 3, p.y - HAUT + 6, 6, HAUT);
+      ctx.fillStyle = "#a7a9a3";
+      ctx.fillRect(p.x - 3, p.y - HAUT + 6, 2.5, HAUT);
+    }
+    // tablier continu
+    for (let i = 0; i < ch.length - 1; i++) {
+      const a = iso(ch[i].x, ch[i].y), b = iso(ch[i + 1].x, ch[i + 1].y);
+      ctx.save();
+      ctx.translate(0, -HAUT);
+      // ombre portee sur la route en dessous
+      ctx.strokeStyle = "rgba(0,0,0,0.22)";
+      ctx.lineWidth = 15;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y + HAUT); ctx.lineTo(b.x, b.y + HAUT); ctx.stroke();
+      // tablier
+      ctx.strokeStyle = "#b9bbb3";
+      ctx.lineWidth = 13;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.strokeStyle = "#d6d8d0";
+      ctx.lineWidth = 9;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      // chaussee
+      ctx.strokeStyle = "#4c525c";
+      ctx.lineWidth = 6.5;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      // ligne centrale
+      ctx.strokeStyle = "rgba(255,255,255,0.75)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 5]);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.setLineDash([]);
+      // garde-fous
+      ctx.strokeStyle = "#e9ebe3"; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y - 4); ctx.lineTo(b.x, b.y - 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(a.x, a.y + 4); ctx.lineTo(b.x, b.y + 4); ctx.stroke();
+      ctx.restore();
+    }
+    // trafic du niveau superieur
+    for (const v of etat.traficHaut) {
+      const i = Math.min(ch.length - 2, Math.max(0, Math.floor(v.p)));
+      const f = v.p - i;
+      const a = iso(ch[i].x, ch[i].y), b = iso(ch[i + 1].x, ch[i + 1].y);
+      const x = a.x + (b.x - a.x) * f;
+      const y = a.y + (b.y - a.y) * f - HAUT - 2;
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      ctx.beginPath(); ctx.ellipse(x, y + 3, 6, 2.4, 0, 0, 6.283); ctx.fill();
+      ctx.fillStyle = v.coul;
+      ctx.fillRect(x - 5.5, y - 4, 11, 5);
+      ctx.fillStyle = "#22303c";
+      ctx.fillRect(x - 3, y - 3.4, 3, 2.4); ctx.fillRect(x + 1, y - 3.4, 3, 2.4);
+    }
+  }
   /* ------------------------------ économie ------------------------------ */
   function gagnerXp(n) {
     etat.xp += n;
@@ -1033,9 +1523,9 @@
   }
 
   /* ------------------------------ entités animées ------------------------------ */
-  const routes = () => etat.batiments.filter((b) => b.cle === "route" || b.cle === "rondPoint");
+  const routes = () => etat.batiments.filter((b) => b.cle === "route" || b.cle === "rondPoint" || b.cle === "pont");
   const rails = () => [...etat.rails].map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; });
-  const voisinRoute = (x, y) => { const v = G(x, y); return v && (v.cle === "route" || v.cle === "rondPoint"); };
+  const voisinRoute = (x, y) => { const v = G(x, y); return v && (v.cle === "route" || v.cle === "rondPoint" || v.cle === "pont"); };
   const trottoirs = () => etat.batiments.filter((b) => b.cle === "trottoir");
   const voisinTrottoir = (x, y) => { const v = G(x, y); return v && v.cle === "trottoir"; };
   const voisinRail = (x, y) => etat.rails.has(x + "," + y);
@@ -1076,7 +1566,21 @@
   // piétons : marcheurs le long des rues, joueurs dans les parcs
   function majPietons(dt) {
     const rs = trottoirs();
-    const parcs = etat.batiments.filter((b) => ["parc", "place", "monument", "stade", "marcheC", "plage_b"].indexOf(b.cle) >= 0);
+    const parcs = etat.batiments.filter((b) => ["parc", "place", "monument", "stade", "marcheC", "plage_b", "piscine", "basket", "mosquee", "eglise"].indexOf(b.cle) >= 0);
+    const interets = etat.batiments.filter((b) => ["monument", "stade", "hotel", "aeroport", "port", "plage_b", "mosquee", "eglise", "marcheC"].indexOf(b.cle) >= 0);
+    // touristes : quelques promeneurs distincts pres des curiosites
+    const cibleT = clamp(interets.length * 2, 0, 22);
+    let touristes = etat.pietons.filter((p) => p.mode === "touriste").length;
+    while (touristes < cibleT) {
+      const b = interets[(Math.random() * interets.length) | 0];
+      const p = {
+        mode: "touriste", base: { x: b.x + (Math.random() - 0.5) * b.w, y: b.y + (Math.random() - 0.5) * b.h },
+        gx: 0, gy: 0, t: 0, ph: Math.random() * 6.28, coul: teintePerso(), cote: 1,
+      };
+      p.gx = p.base.x; p.gy = p.base.y;
+      etat.pietons.push(p);
+      touristes++;
+    }
     const cible = clamp(Math.floor(rs.length / 1.3) + parcs.length * 2, 0, 70);
     while (etat.pietons.length < cible) {
       if (parcs.length && Math.random() < 0.28) {
@@ -1092,6 +1596,17 @@
     if (etat.pietons.length > cible + 6) etat.pietons.length = cible;
     for (const p of etat.pietons) {
       p.ph += dt * (p.mode === "marche" ? 7 : 3);
+      if (p.mode === "touriste") {
+        p.t += dt;
+        if (p.t > 3.5) {
+          p.t = 0;
+          p.base.x += (Math.random() - 0.5) * 1.6;
+          p.base.y += (Math.random() - 0.5) * 1.6;
+        }
+        p.gx += (p.base.x - p.gx) * dt * 1.4;
+        p.gy += (p.base.y - p.gy) * dt * 1.4;
+        continue;
+      }
       if (p.mode === "joue") {
         p.t += dt;
         if (p.t > 6) { p.t = 0; p.base.x += (Math.random() - 0.5) * 0.5; p.base.y += (Math.random() - 0.5) * 0.5; }
@@ -1195,40 +1710,66 @@
   }
 
   // train : se forme quand le réseau de rails est assez long
-  function majTrain() {
+  // Itineraire continu sur les rails : parcours en profondeur, puis aller-retour.
+  function construireItineraire() {
     const rs = rails();
-    if (rs.length < 2) { etat.train = null; return; }
-    if (etat.train) return;
-    const r = rs[0];
-    etat.train = { gx: r.x, gy: r.y, tx: r.x, ty: r.y, t: 1, px: r.x, py: r.y, v: 0.5, trace: [], wagons: 3 };
+    if (rs.length < 2) return [];
+    const k = (p) => p.x + "," + p.y;
+    const dispo = new Set(rs.map(k));
+    const vus = new Set();
+    const ordre = [];
+    const pile = [rs[0]];
+    while (pile.length) {
+      const p = pile.pop();
+      const cle = k(p);
+      if (vus.has(cle)) continue;
+      vus.add(cle); ordre.push(p);
+      // on avance en priorite vers le rail non visite le plus proche
+      const voisins = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+        .map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy }))
+        .filter((q) => dispo.has(k(q)) && !vus.has(k(q)));
+      for (const q of voisins) pile.push(q);
+    }
+    return ordre;
+  }
+
+  function majTrain() {
+    const it = construireItineraire();
+    etat.itineraire = it;
+    if (it.length < 2) { etat.train = null; return; }
+    if (!etat.train) {
+      etat.train = { i: 0, t: 0, sens: 1, gx: it[0].x, gy: it[0].y, tx: it[1].x, ty: it[1].y, trace: [], wagons: 3, v: 1.6 };
+    } else {
+      // le reseau a change : on garde le train mais on le replace proprement
+      if (etat.train.i >= it.length - 1) { etat.train.i = 0; etat.train.sens = 1; }
+      etat.train.t = etat.train.t || 0;
+    }
   }
 
   function majTrainBouge(dt) {
     const tr = etat.train;
     if (!tr) return;
-    if (rails().length < 2) { etat.train = null; return; }
-    tr.t += dt * tr.v * 1.4;
-    if (tr.t >= 1) {
-      tr.gx = tr.tx; tr.gy = tr.ty; tr.t = 0;
-      if (!voisinRail(tr.gx, tr.gy)) {
-        const rs = rails();
-        const r = rs[(Math.random() * rs.length) | 0];
-        tr.gx = r.x; tr.gy = r.y; tr.tx = r.x; tr.ty = r.y;
-      }
-      const opts = [];
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (voisinRail(tr.gx + dx, tr.gy + dy)) opts.push([tr.gx + dx, tr.gy + dy]);
-      if (opts.length) {
-        const ahead = opts.filter(([x, y]) => !(x === tr.px && y === tr.py));
-        const pool = ahead.length ? ahead : opts;
-        const pick = pool[(Math.random() * pool.length) | 0];
-        tr.px = tr.gx; tr.py = tr.gy; tr.tx = pick[0]; tr.ty = pick[1];
-      }
+    const it = etat.itineraire;
+    if (!it || it.length < 2) { etat.train = null; return; }
+
+    tr.t += dt * (tr.v || 1.6);
+    while (tr.t >= 1) {
+      tr.t -= 1;
+      tr.i += tr.sens;
+      if (tr.i >= it.length - 1) { tr.i = it.length - 1; tr.sens = -1; }
+      if (tr.i <= 0) { tr.i = 0; tr.sens = 1; }
     }
-    // historique pour les wagons
-    const fx = tr.gx + (tr.tx - tr.gx) * tr.t, fy = tr.gy + (tr.ty - tr.gy) * tr.t;
+    const a = it[tr.i];
+    const b = it[Math.min(it.length - 1, tr.i + tr.sens)];
+    if (!b) { tr.t = 0; return; }
+    tr.gx = a.x; tr.gy = a.y; tr.tx = b.x; tr.ty = b.y;
+
+    const fx = tr.gx + (tr.tx - tr.gx) * tr.t;
+    const fy = tr.gy + (tr.ty - tr.gy) * tr.t;
     tr.trace.push({ x: fx, y: fy });
-    if (tr.trace.length > 140) tr.trace.shift();
+    if (tr.trace.length > 260) tr.trace.shift();
   }
+
 
   function majAvions(dt) {
     const aero = etat.batiments.filter((b) => b.cle === "aeroport");
@@ -1269,6 +1810,7 @@
   function flottant(txt, x, y, col) { etat.flottants.push({ txt, x, y, t: 0, col }); }
 
   function majHud() {
+    majBanniereAlerte();
     $("#h-niveau").textContent = etat.niveau;
     $("#h-hab").textContent = fmt(etat.habitants);
     $("#h-bonheur").textContent = etat.bonheur + "%";
@@ -1382,7 +1924,7 @@
     try {
       localStorage.setItem(SAVE, JSON.stringify({
         argent: etat.argent, xp: etat.xp, niveau: etat.niveau, heure: etat.heure,
-        bat: etat.batiments.map((b) => [b.cle, b.x, b.y, b.niv, b.total]), rails: [...etat.rails], t: Date.now(),
+        bat: etat.batiments.map((b) => [b.cle, b.x, b.y, b.niv, b.total]), rails: [...etat.rails], eau: [...etat.eau], viaducs: [...etat.viaducs], t: Date.now(),
       }));
     } catch (e) {}
   }
@@ -1411,6 +1953,9 @@
       etat.batiments.push(b);
     }
     etat.rails = new Set(data.rails || []);
+    etat.eau = new Set(data.eau || []);
+    etat.viaducs = new Set(data.viaducs || []);
+    regenererSol();
     recalculer();
     const sec = clamp((Date.now() - (data.t || Date.now())) / 1000, 0, 7200);
     const gain = sansGain ? 0 : Math.floor(etat.revenuSec * sec * 0.5);
@@ -1726,6 +2271,62 @@
       ctx.beginPath(); ctx.ellipse(n.x, n.y, 150 * n.s, 55 * n.s, 0, 0, 6.283); ctx.fill();
     }
 
+
+    dessinerViaducs();
+
+    // unites de secours (police, pompiers, ambulance)
+    for (const u of etat.unites) {
+      const p = iso(u.gx, u.gy);
+      const coul = u.type === "police" ? "#2f6fd0" : u.type === "pompier" ? "#d63a2f" : "#f4f6f4";
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      // ombre
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      ctx.beginPath(); ctx.ellipse(0, 2, 11, 4, 0, 0, 6.283); ctx.fill();
+      ctx.rotate(u.ang * 0.35);
+      // carrosserie
+      ctx.fillStyle = coul; ctx.fillRect(-10, -6, 20, 8);
+      ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillRect(-10, -6, 20, 2);
+      ctx.fillStyle = "#22303c"; ctx.fillRect(-6, -5, 5, 4); ctx.fillRect(2, -5, 5, 4);
+      if (u.type === "pompier") { ctx.fillStyle = "#f5cf1b"; ctx.fillRect(-10, -1, 20, 1.6); }
+      ctx.restore();
+
+      // sirene tricolore (rouge / jaune / vert) quand l'unite roule en urgence
+      if (u.sirene > 0) {
+        const ph = Math.floor(etat.temps * 6) % 3;
+        const cols = ["#e5484d", "#f5cf1b", "#009460"];
+        ctx.save(); ctx.translate(p.x, p.y - 9);
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = cols[ph];
+        ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, 6.283); ctx.fill();
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath(); ctx.arc(0, 0, 7 + (etat.temps * 8) % 6, 0, 6.283); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // alertes en cours
+    for (const a of etat.alertes) {
+      if (a.fini) continue;
+      const p = iso(a.x + (a.w || 1) * 0.0, a.y);
+      const puls = 0.5 + 0.5 * Math.sin(etat.temps * 6);
+      ctx.save();
+      ctx.translate(p.x, p.y - 30);
+      ctx.globalAlpha = 0.55 + puls * 0.45;
+      ctx.fillStyle = "rgba(229,72,77,0.28)";
+      ctx.beginPath(); ctx.arc(0, 0, 13 + puls * 5, 0, 6.283); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.font = "bold 15px system-ui, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(ALERTES[a.type].ico, 0, 0);
+      // chrono
+      ctx.fillStyle = "rgba(10,14,20,0.8)";
+      ctx.fillRect(-11, 10, 22, 10);
+      ctx.fillStyle = "#fff"; ctx.font = "bold 8px system-ui, sans-serif";
+      ctx.fillText(Math.max(0, Math.ceil(a.duree - a.t)) + "s", 0, 15);
+      ctx.restore();
+    }
+
     ctx.restore();
 
     // voile de nuit : uniquement sur la ville, jamais sur l'ecran ni sur les menus
@@ -1758,17 +2359,19 @@
 
     if (etat.ecran === "jeu") {
       etat.temps += dt;
-      etat.heure = (etat.heure + dt * (24 / 150)) % 24;
+      if (etat.jourFixe) etat.heure = 12;
+      else etat.heure = (etat.heure + dt * (24 / 150)) % 24;
       // nuit entre 19h et 6h
       const hh = etat.heure;
       let n = 0;
       if (hh >= 19) n = clamp((hh - 19) / 2, 0, 1);
       else if (hh < 6) n = 1;
       else if (hh < 7) n = clamp(1 - (hh - 6), 0, 1);
-      etat.nuit = n;
+      etat.nuit = etat.jourFixe ? 0 : n;
 
       etat.argent += etat.revenuSec * dt;
       majVoitures(dt); majPietons(dt); majCamions(dt); majTrainBouge(dt); majAvions(dt); majMeteo(dt);
+      majAlertes(dt); majUnites(dt); majTraficHautBouge(dt);
       for (const f of etat.flottants) f.t += dt;
       etat.flottants = etat.flottants.filter((f) => f.t < 1.3);
 
@@ -1854,6 +2457,8 @@
     const b = G(c.x, c.y);
     if (etat.gomme) {
       const k = c.x + "," + c.y;
+      if (etat.viaducs.has(k)) { retirerViaduc(c.x, c.y); return; }
+      if (etat.eau.has(k)) { retirerEau(c.x, c.y); return; }
       if (etat.rails.has(k)) { retirerRail(c.x, c.y); return; }
       if (b) demolir(b); else bulle("Rien à démolir ici");
       return;
@@ -1872,6 +2477,13 @@
   $("#btn-zoom-plus").addEventListener("click", () => { cam.z *= 1.3; limiterCam(); });
   $("#btn-zoom-moins").addEventListener("click", () => { cam.z /= 1.3; limiterCam(); });
   $("#btn-vue").addEventListener("click", recentrer);
+  $("#btn-deployer").addEventListener("click", () => { if (etat.ecran === "jeu") deployer(); });
+  $("#btn-jour").addEventListener("click", () => {
+    etat.jourFixe = !etat.jourFixe;
+    $("#btn-jour").textContent = etat.jourFixe ? "☀️" : "🌙";
+    bulle(etat.jourFixe ? "Journée permanente activée" : "Cycle jour / nuit activé");
+    son(520, 0.09, "triangle", 0.06);
+  });
   $("#btn-annuler").addEventListener("click", () => { if (etat.ecran === "jeu") annuler(); });
   $("#btn-reset-jeu").addEventListener("click", () => { if (etat.ecran === "jeu") reinitialiser(); });
   $("#btn-gomme").addEventListener("click", () => {
@@ -1932,6 +2544,10 @@
   window.__simApi = {
     poser, recentrer, CAT, N,
     cam: camV,
+    bfsRoute: bfsRoute,
+    voisinRoute: voisinRoute,
+    typeSol: typeSol,
+    G: G,
     camC: cam,
     limiter: () => limiterCam(),
     caseCentre: () => ({ x: Math.round((cam.x / (TW / 2) + cam.y / (TH / 2)) / 2), y: Math.round((cam.y / (TH / 2) - cam.x / (TW / 2)) / 2) }),
