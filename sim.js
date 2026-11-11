@@ -25,7 +25,8 @@
   /* ------------------------------ monde ------------------------------ */
   const N = 40;
   const TW = 64, TH = 32;
-  const SAVE = "komara-city-v2";
+  const SAVE = "komara-city";            // cle figee : ne plus jamais la changer
+  const SAVE_ANCIENNES = ["komara-city-v2", "komara-city-v1"];
 
   function typeSol(x, y) {
     const d = x + y;
@@ -943,6 +944,7 @@
     recalculer();
     son(120, 0.18, "sawtooth", 0.07);
     etat.modifie = true;
+    sauver();
     const p = iso(b.x + b.w / 2, b.y + b.h / 2);
     flottant("+" + fmt(b.total * 0.5), p.x, p.y - 10, "#9fe0a8");
   }
@@ -1323,7 +1325,10 @@
   function fermerInfo() { etat.selection = null; const i = $("#info"); if (i) i.classList.add("cache"); }
 
   /* ------------------------------ sauvegarde ------------------------------ */
+  let sauveEnCours = 0;
   function sauver() {
+    if (/:auto=1/.test(location.search)) return;              // la demo ne touche jamais a ta ville
+    if (!etat.batiments || !etat.batiments.length) return;   // jamais ecraser une ville par du vide
     try {
       localStorage.setItem(SAVE, JSON.stringify({
         argent: etat.argent, xp: etat.xp, niveau: etat.niveau, heure: etat.heure,
@@ -1331,7 +1336,18 @@
       }));
     } catch (e) {}
   }
-  const lire = () => { try { return JSON.parse(localStorage.getItem(SAVE) || "null"); } catch (e) { return null; } };
+  function lire() {
+    try {
+      const direct = localStorage.getItem(SAVE);
+      if (direct) return JSON.parse(direct);
+      // reprise d'une ancienne sauvegarde
+      for (const k of SAVE_ANCIENNES) {
+        const v = localStorage.getItem(k);
+        if (v) { const d = JSON.parse(v); localStorage.setItem(SAVE, v); return d; }
+      }
+      return null;
+    } catch (e) { return null; }
+  }
 
   function charger(data) {
     etat.argent = data.argent; etat.xp = data.xp; etat.niveau = data.niveau;
@@ -1378,6 +1394,10 @@
 
   function statsAccueil() {
     const d = lire();
+    const btn = $("#btn-jouer");
+    if (btn) btn.textContent = d && d.bat && d.bat.length ? "Reprendre ma ville" : "Commencer à bâtir";
+    const rl = $("#a-reprise");
+    if (rl) rl.textContent = d && d.bat && d.bat.length ? "Ta ville t'attend, on reprend où tu t'es arrêté." : "Sauvegarde automatique : ta ville est gardée.";
     $("#a-niveau").textContent = d ? d.niveau : 1;
     $("#a-bat").textContent = d ? d.bat.filter((b) => b[0] !== "route" && b[0] !== "rail").length : 0;
     let hab = 0;
@@ -1708,7 +1728,7 @@
       accHud += dt;
       if (accHud > 0.12) { accHud = 0; majHud(); }
       accSauve += dt;
-      if (accSauve > 6) { accSauve = 0; if (etat.modifie) { sauver(); etat.modifie = false; } }
+      if (accSauve > 2.5) { accSauve = 0; if (etat.modifie) { sauver(); etat.modifie = false; } }
       dessiner();
     }
     requestAnimationFrame(boucle);
@@ -1842,6 +1862,7 @@
 
   window.addEventListener("resize", () => { if (etat.ecran === "jeu") redim(); });
   window.addEventListener("pagehide", () => { if (etat.batiments.length) sauver(); });
+  window.addEventListener("beforeunload", () => { if (etat.batiments.length) sauver(); });
   document.addEventListener("visibilitychange", () => { if (document.hidden && etat.batiments.length) sauver(); });
 
   /* ------------------------------ pilote de démo ------------------------------ */
