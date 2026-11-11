@@ -101,6 +101,7 @@
     xp: 0,
     niveau: 1,
     grille: new Array(N * N).fill(null),
+    histo: [],
     rails: new Set(),
     batiments: [],
     choix: "route",
@@ -166,10 +167,13 @@
   const ZOOM_MIN = 0.4, ZOOM_MAX = 2.8;
 
   function limiterCam() {
-    const centre = iso(N / 2, N / 2);
-    const demi = N * TW / 2;
-    cam.x = clamp(cam.x, centre.x - demi * 0.85, centre.x + demi * 0.85);
-    cam.y = clamp(cam.y, centre.y - N * TH * 0.55, centre.y + N * TH * 0.55);
+    // le centre de l'ecran doit rester sur le terrain : impossible de se perdre hors carte
+    const gx = (cam.x / (TW / 2) + cam.y / (TH / 2)) / 2;
+    const gy = (cam.y / (TH / 2) - cam.x / (TW / 2)) / 2;
+    const cx = clamp(gx, 1.5, N - 2.5);
+    const cy = clamp(gy, 1.5, N - 2.5);
+    const p = iso(cx, cy);
+    cam.x = p.x; cam.y = p.y;
     cam.z = clamp(cam.z, ZOOM_MIN, ZOOM_MAX);
   }
 
@@ -844,6 +848,45 @@
     return out;
   }
 
+  /* ------------------------- annuler / reinitialiser ------------------------ */
+  function instantane() {
+    return {
+      bat: etat.batiments.map((b) => [b.cle, b.x, b.y, b.niv, b.total]),
+      rails: [...etat.rails], argent: etat.argent, xp: etat.xp,
+      niveau: etat.niveau, heure: etat.heure, t: Date.now(),
+    };
+  }
+  function empilerHisto() {
+    etat.histo.push(instantane());
+    if (etat.histo.length > 25) etat.histo.shift();
+  }
+  function annuler() {
+    if (!etat.histo.length) { bulle("Rien à annuler"); son(180, 0.1, "square", 0.05); return; }
+    const d = etat.histo.pop();
+    charger(d, true);
+    construireDock(); majHud(); fermerInfo(); sauver();
+    bulle("Annulé");
+    son(320, 0.1, "triangle", 0.06);
+  }
+  function reinitialiser() {
+    if (!etat.confirmeReset) {
+      etat.confirmeReset = true;
+      bulle("Touche encore pour tout effacer");
+      son(200, 0.12, "square", 0.06);
+      setTimeout(() => { etat.confirmeReset = false; }, 3200);
+      return;
+    }
+    etat.confirmeReset = false;
+    etat.batiments = []; etat.grille.fill(null); etat.rails = new Set();
+    etat.train = null; etat.histo = []; etat.argent = 2500; etat.xp = 0;
+    etat.niveau = 1; etat.vague = 0; etat.heure = 8; etat.selection = null;
+    etat.voitures.length = 0; etat.pietons.length = 0; etat.camions.length = 0;
+    try { localStorage.removeItem(SAVE); } catch (e) {}
+    recalculer(); construireDock(); majHud(); fermerInfo(); majTrain();
+    bulle("Ville réinitialisée");
+    son(240, 0.2, "sine", 0.08);
+  }
+
   function peutPoser(cle, x, y) {
     const m = CAT[cle];
     if (cle === "rail") {
@@ -896,7 +939,8 @@
     if (m.niv > etat.niveau) { if (!silence) bulle("Débloqué au niveau " + m.niv); return false; }
     const refus = peutPoser(cle, x, y);
     if (refus) { if (!silence) { bulle(refus); son(180, 0.12, "square", 0.05); } return false; }
-    if (etat.argent < m.cout) { if (!silence) { bulle("Il te manque " + fmt(m.cout - etat.argent) + " $"); son(180, 0.12, "square", 0.05); } return false; }
+    empilerHisto();
+    if (etat.argent < m.cout) { etat.histo.pop(); if (!silence) { bulle("Il te manque " + fmt(m.cout - etat.argent) + " $"); son(180, 0.12, "square", 0.05); } return false; }
     etat.argent -= m.cout;
     if (cle === "rail") {
       etat.rails.add(x + "," + y);
@@ -922,7 +966,20 @@
     return true;
   }
 
+  function retirerRail(x, y) {
+    const k = x + "," + y;
+    if (!etat.rails.has(k)) return;
+    empilerHisto();
+    etat.rails.delete(k);
+    etat.argent += Math.round(CAT.rail.cout * 0.5);
+    majTrain(); recalculer(); etat.modifie = true; sauver();
+    const p = iso(x, y);
+    flottant("+" + fmt(Math.round(CAT.rail.cout * 0.5)), p.x, p.y - 10, "#9fe0a8");
+    son(300, 0.1, "square", 0.05);
+  }
+
   function demolir(b) {
+    empilerHisto();
     if (b.cle === "rail") {
       etat.rails.delete(b.x + "," + b.y);
       etat.argent += Math.round(CAT.rail.cout * 0.5);
@@ -1140,7 +1197,7 @@
   // train : se forme quand le réseau de rails est assez long
   function majTrain() {
     const rs = rails();
-    if (rs.length < 4) { etat.train = null; return; }
+    if (rs.length < 2) { etat.train = null; return; }
     if (etat.train) return;
     const r = rs[0];
     etat.train = { gx: r.x, gy: r.y, tx: r.x, ty: r.y, t: 1, px: r.x, py: r.y, v: 0.5, trace: [], wagons: 3 };
@@ -1149,7 +1206,7 @@
   function majTrainBouge(dt) {
     const tr = etat.train;
     if (!tr) return;
-    if (rails().length < 4) { etat.train = null; return; }
+    if (rails().length < 2) { etat.train = null; return; }
     tr.t += dt * tr.v * 1.4;
     if (tr.t >= 1) {
       tr.gx = tr.tx; tr.gy = tr.ty; tr.t = 0;
@@ -1342,7 +1399,7 @@
     } catch (e) { return null; }
   }
 
-  function charger(data) {
+  function charger(data, sansGain) {
     etat.argent = data.argent; etat.xp = data.xp; etat.niveau = data.niveau;
     etat.heure = data.heure == null ? 8 : data.heure;
     etat.grille.fill(null); etat.batiments = [];
@@ -1356,7 +1413,7 @@
     etat.rails = new Set(data.rails || []);
     recalculer();
     const sec = clamp((Date.now() - (data.t || Date.now())) / 1000, 0, 7200);
-    const gain = Math.floor(etat.revenuSec * sec * 0.5);
+    const gain = sansGain ? 0 : Math.floor(etat.revenuSec * sec * 0.5);
     if (gain > 5) { etat.argent += gain; setTimeout(() => bulle("Pendant ton absence : +" + fmt(gain) + " $"), 700); }
     majTrain();
   }
@@ -1671,15 +1728,22 @@
 
     ctx.restore();
 
-    // voile de nuit
+    // voile de nuit : uniquement sur la ville, jamais sur l'ecran ni sur les menus
     if (etat.nuit > 0.02) {
-      ctx.fillStyle = "rgba(6,14,42," + (etat.nuit * 0.5).toFixed(2) + ")";
-      ctx.fillRect(0, 0, L, Hc);
+      ctx.save();
+      ctx.translate(L / 2, Hc / 2);
+      ctx.scale(camV.z, camV.z);
+      ctx.translate(-camV.x, -camV.y);
+      const nord = iso(0, 0), est = iso(N, 0), sud = iso(N, N), ouest = iso(0, N);
+      ctx.beginPath();
+      ctx.moveTo(nord.x, nord.y); ctx.lineTo(est.x, est.y);
+      ctx.lineTo(sud.x, sud.y); ctx.lineTo(ouest.x, ouest.y);
+      ctx.closePath();
+      ctx.clip();
+      ctx.fillStyle = "rgba(8,18,48," + (etat.nuit * 0.34).toFixed(2) + ")";
+      ctx.fillRect(ouest.x, nord.y, est.x - ouest.x, sud.y - nord.y);
+      ctx.restore();
     }
-
-    const vg = ctx.createRadialGradient(L / 2, Hc / 2, Math.min(L, Hc) * 0.4, L / 2, Hc / 2, Math.max(L, Hc) * 0.82);
-    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,10,22,0.34)");
-    ctx.fillStyle = vg; ctx.fillRect(0, 0, L, Hc);
   }
 
   /* ------------------------------ boucle ------------------------------ */
@@ -1786,8 +1850,14 @@
 
   function agir(p) {
     const c = versCase(p.x, p.y);
+    if (c.x < 0 || c.y < 0 || c.x >= N || c.y >= N) { bulle("Hors du terrain"); return; }
     const b = G(c.x, c.y);
-    if (etat.gomme) { if (b) demolir(b); else bulle("Rien à démolir ici"); return; }
+    if (etat.gomme) {
+      const k = c.x + "," + c.y;
+      if (etat.rails.has(k)) { retirerRail(c.x, c.y); return; }
+      if (b) demolir(b); else bulle("Rien à démolir ici");
+      return;
+    }
     if (b && b.cle !== "route") { ouvrirInfo(b); return; }
     fermerInfo();
     if (b && (b.cle === "route" || b.cle === "trottoir" || b.cle === "rondPoint") &&
@@ -1802,6 +1872,8 @@
   $("#btn-zoom-plus").addEventListener("click", () => { cam.z *= 1.3; limiterCam(); });
   $("#btn-zoom-moins").addEventListener("click", () => { cam.z /= 1.3; limiterCam(); });
   $("#btn-vue").addEventListener("click", recentrer);
+  $("#btn-annuler").addEventListener("click", () => { if (etat.ecran === "jeu") annuler(); });
+  $("#btn-reset-jeu").addEventListener("click", () => { if (etat.ecran === "jeu") reinitialiser(); });
   $("#btn-gomme").addEventListener("click", () => {
     etat.gomme = !etat.gomme;
     $("#btn-gomme").classList.toggle("actif", etat.gomme);
@@ -1860,6 +1932,12 @@
   window.__simApi = {
     poser, recentrer, CAT, N,
     cam: camV,
+    camC: cam,
+    limiter: () => limiterCam(),
+    caseCentre: () => ({ x: Math.round((cam.x / (TW / 2) + cam.y / (TH / 2)) / 2), y: Math.round((cam.y / (TH / 2) - cam.x / (TW / 2)) / 2) }),
+    agir: (sx, sy) => agir({ x: sx, y: sy }),
+    annuler: () => annuler(),
+    reinitialiser: () => reinitialiser(),
     debug: () => {
       const mines = etat.batiments.filter((b) => b.cle === "mine");
       const ports = etat.batiments.filter((b) => b.cle === "port");
