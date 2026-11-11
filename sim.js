@@ -41,6 +41,7 @@
     /* --- infrastructure --- */
     route:      { nom: "Route",        cout: 8,    rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "route" },
     rail:       { nom: "Chemin de fer",cout: 22,   rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "rail" },
+    trottoir:   { nom: "Trottoir",     cout: 5,    rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "trottoir" },
     pont:       { nom: "Pont",         cout: 140,  rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "pont" },
     rondPoint:  { nom: "Rond-point",   cout: 320,  rev: 1,    w: 1, h: 1, onglet: "route",    niv: 2, type: "rond" },
 
@@ -749,6 +750,27 @@
     sol = c;
   }
 
+  function dessinerTrottoir(ctx, x, y) {
+    const bordN = !!(G(x, y - 1) && G(x, y - 1).cle === "trottoir");
+    const bordS = !!(G(x, y + 1) && G(x, y + 1).cle === "trottoir");
+    losange(ctx, 0, -3, TW * 0.96, TH * 0.96, "#b8b09c");
+    losange(ctx, 0, -4.5, TW * 0.74, TH * 0.74, "#c8c1ad");
+    ctx.strokeStyle = "rgba(148,141,124,0.6)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-TW * 0.24, -4.5 - TH * 0.24);
+    ctx.lineTo(TW * 0.24, -4.5 + TH * 0.24);
+    ctx.moveTo(TW * 0.24, -4.5 - TH * 0.24);
+    ctx.lineTo(-TW * 0.24, -4.5 + TH * 0.24);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,252,240,0.45)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (!bordN) { ctx.moveTo(0, -TH / 2 - 3); ctx.lineTo(TW / 2, -3); }
+    if (!bordS) { ctx.moveTo(-TW / 2, -3); ctx.lineTo(0, TH / 2 - 3); }
+    ctx.stroke();
+  }
+
   function dessinerRoute(ctx, x, y) {
     const n = !!(G(x, y - 1) && (G(x, y - 1).cle === "route" || G(x, y - 1).cle === "rondPoint"));
     const s = !!(G(x, y + 1) && (G(x, y + 1).cle === "route" || G(x, y + 1).cle === "rondPoint"));
@@ -861,13 +883,13 @@
     }
     if (eau > 0) return "On ne construit pas sur l'eau";
     if (plage > 0 && cle !== "route") return "La plage est réservée aux loisirs";
-    if (["route", "rail", "rondPoint"].indexOf(cle) >= 0) return null;
+    if (["route", "rail", "rondPoint", "trottoir"].indexOf(cle) >= 0) return null;
     // les bâtiments doivent toucher une route ou un rail
     let ok = false;
     for (const [cx, cy] of cases) {
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const v = G(cx + dx, cy + dy);
-        if (v && (v.cle === "route" || v.cle === "rondPoint" || v.cle === "rail")) { ok = true; break; }
+        if (v && (v.cle === "route" || v.cle === "rondPoint" || v.cle === "rail" || v.cle === "trottoir")) { ok = true; break; }
       }
       if (ok) break;
     }
@@ -962,6 +984,8 @@
   const routes = () => etat.batiments.filter((b) => b.cle === "route" || b.cle === "rondPoint");
   const rails = () => [...etat.rails].map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; });
   const voisinRoute = (x, y) => { const v = G(x, y); return v && (v.cle === "route" || v.cle === "rondPoint"); };
+  const trottoirs = () => etat.batiments.filter((b) => b.cle === "trottoir");
+  const voisinTrottoir = (x, y) => { const v = G(x, y); return v && v.cle === "trottoir"; };
   const voisinRail = (x, y) => etat.rails.has(x + "," + y);
 
   function majVoitures(dt) {
@@ -999,7 +1023,7 @@
 
   // piétons : marcheurs le long des rues, joueurs dans les parcs
   function majPietons(dt) {
-    const rs = routes();
+    const rs = trottoirs();
     const parcs = etat.batiments.filter((b) => ["parc", "place", "monument", "stade", "marcheC", "plage_b"].indexOf(b.cle) >= 0);
     const cible = clamp(Math.floor(rs.length / 1.3) + parcs.length * 2, 0, 70);
     while (etat.pietons.length < cible) {
@@ -1025,9 +1049,9 @@
       p.t += dt * p.v;
       if (p.t >= 1) {
         p.gx = p.tx; p.gy = p.ty; p.t = 0;
-        if (!voisinRoute(p.gx, p.gy)) { p.mode = "fin"; continue; }
+        if (!voisinTrottoir(p.gx, p.gy)) { p.mode = "fin"; continue; }
         const opts = [];
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (voisinRoute(p.gx + dx, p.gy + dy)) opts.push([p.gx + dx, p.gy + dy]);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (voisinTrottoir(p.gx + dx, p.gy + dy)) opts.push([p.gx + dx, p.gy + dy]);
         if (!opts.length) { p.mode = "fin"; continue; }
         const ahead = opts.filter(([x, y]) => !(x === p.px && y === p.py));
         const pool = ahead.length ? ahead : opts;
@@ -1232,7 +1256,13 @@
     const g = cv.getContext("2d");
     g.translate(60, 62);
     const m = CAT[cle];
-    if (cle === "route" || cle === "rail") {
+    if (cle === "trottoir") {
+      losange(g, 0, 0, TW * 0.9, TH * 0.9, "#b9b2a0");
+      g.strokeStyle = "rgba(120,114,100,0.85)";
+      g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(-14, -7); g.lineTo(14, 7); g.stroke();
+      g.beginPath(); g.moveTo(-14, 7); g.lineTo(14, -7); g.stroke();
+    } else if (cle === "route" || cle === "rail") {
       losange(g, 0, 0, TW * 0.9, TH * 0.9, cle === "rail" ? "#6f6656" : "#4c525c");
       g.strokeStyle = cle === "rail" ? "#b9c0c8" : "rgba(240,240,230,0.7)";
       g.lineWidth = 2; g.setLineDash(cle === "rail" ? [] : [5, 4]);
@@ -1455,10 +1485,11 @@
 
     // routes au sol
     for (const b of etat.batiments) {
-      if (b.cle !== "route" && b.cle !== "rondPoint" && b.cle !== "pont") continue;
+      if (b.cle !== "route" && b.cle !== "rondPoint" && b.cle !== "pont" && b.cle !== "trottoir") continue;
       const p = iso(b.x, b.y);
       ctx.save(); ctx.translate(p.x, p.y);
       if (b.cle === "rondPoint") { losange(ctx, 0, 0, TW + 1, TH + 1, "#4c525c"); losange(ctx, 0, 0, TW * 0.62, TH * 0.62, "#5bb04a"); losange(ctx, 0, 0, TW * 0.32, TH * 0.32, "#6bc258"); arbre(ctx, 0, 0, 8, false); }
+      else if (b.cle === "trottoir") dessinerTrottoir(ctx, b.x, b.y);
       else dessinerRoute(ctx, b.x, b.y);
       ctx.restore();
     }
@@ -1870,6 +1901,10 @@
     // réseau routier principal
     for (let i = -9; i <= 12; i++) { poser("route", c + i, c, true); poser("route", c + i, c + 5, true); poser("route", c + i, c - 5, true); }
     for (let j = -9; j <= 11; j++) { poser("route", c, c + j, true); poser("route", c + 7, c + j, true); poser("route", c - 7, c + j, true); }
+
+    // trottoirs pietons le long des axes (les gens n'y marchent que la)
+    for (let i = -8; i <= 11; i++) { poser("trottoir", c + i, c + 1, true); poser("trottoir", c + i, c - 1, true); }
+    for (let j = -8; j <= 10; j++) { poser("trottoir", c + 1, c + j, true); poser("trottoir", c - 1, c + j, true); }
     // voie ferrée : une ligne droite traversant la ville (passages à niveau autorisés)
     for (let i = -9; i <= 11; i++) poser("rail", c + i, c + 9, true);
     for (let j = 2; j <= 9; j++) poser("rail", c + 11, c + j, true);
