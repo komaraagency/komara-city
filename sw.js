@@ -1,4 +1,4 @@
-const CACHE = "komara-city-v1";
+const CACHE = "komara-city-v3";
 const ESSENTIELS = ["./", "index.html", "style.css", "sim.js", "manifest.json", "assets/logo-256.png"];
 
 self.addEventListener("install", (e) => {

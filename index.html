@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="assets/favicon-64.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 
@@ -20,7 +20,7 @@
     <img class="logo" src="assets/logo-256.png" alt="Komara Agency">
     <p class="sur-titre">KOMARA AGENCY <span class="drap-gn" aria-label="Guinée"></span></p>
     <h1>Komara<br>City</h1>
-    <p class="accroche">Construis une ville au bord de l'océan : routes, maisons, tours, plage et port. Fais grandir tes habitants et ton argent.</p>
+    <p class="accroche">Bâtis une ville guinéenne au bord de l'océan : routes et chemin de fer, aéroport, mines et port, monuments et drapeaux. Fais-la vivre jour et nuit.</p>
     <button id="btn-jouer" class="bouton-principal">Commencer à bâtir</button>
     <button id="btn-installer" class="bouton-secondaire cache">Installer sur mon téléphone</button>
     <div class="stats-accueil">
@@ -28,7 +28,7 @@
       <div><b id="a-hab">0</b>HABITANTS</div>
       <div><b id="a-bat">0</b>BÂTIMENTS</div>
     </div>
-    <p class="aide-accueil">Touche un bâtiment en bas, puis touche la ville pour le poser. Glisse pour te déplacer, pince pour zoomer.</p>
+    <p class="aide-accueil">Choisis un bâtiment en bas, puis touche la ville pour le poser. Trace des rails pour le train, relie une mine à un port pour les camions.</p>
     <button id="btn-reset" class="lien-reset">Effacer ma ville</button>
   </div>
 </section>
@@ -47,7 +47,7 @@
     </div>
     <div class="hud-bloc centre">
       <div class="hud-ligne"><span>😊</span><b id="h-bonheur">100%</b></div>
-      <div class="hud-ligne petit"><span id="h-revenu">+0/s</span></div>
+      <div class="hud-ligne petit"><span id="h-revenu">+0/s</span><span id="h-heure">08h</span></div>
     </div>
     <div class="hud-bloc droite">
       <div class="monnaie"><span class="piece">$</span><b id="h-argent">0</b></div>
@@ -80,7 +80,7 @@
   </div>
 </section>
 
-<script src="sim.js?v=1"></script>
+<script src="sim.js?v=3"></script>
 <script>
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
