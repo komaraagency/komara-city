@@ -144,7 +144,7 @@
     viaducs: new Set(),      // ponts aeriens au-dessus des routes
     sable: new Set(),        // plage dessinee par le joueur
     traficHaut: [],          // vehicules qui roulent sur les viaducs
-    jourFixe: true,          // le joueur reste en pleine journee
+    jourFixe: false,         // cycle jour/nuit actif par defaut
     batiments: [],
     choix: "route",
     onglet: "route",
@@ -1194,6 +1194,7 @@
     etat.voitures.length = 0; etat.pietons.length = 0; etat.camions.length = 0;
     try { localStorage.removeItem(SAVE); } catch (e) {}
     recalculer(); construireDock(); majHud(); fermerInfo(); majTrain();
+    demarrerAudio();
     bulle("Ville réinitialisée");
     son(240, 0.2, "sine", 0.08);
   }
@@ -1829,6 +1830,121 @@
       ctx.restore();
     }
     ctx.globalAlpha = 1;
+  }
+
+
+  /* ------------------------------ ambiance sonore ------------------------------ */
+  const SON = {
+    ctx: null, pret: false, mute: false, gain: null,
+    moteur: null, foule: null, vagues: null, oiseau: null,
+    prochainOiseau: 0, prochaineVague: 0,
+  };
+
+  try { window.__son = SON; } catch (e) {}
+
+  function bruitBuffer(ctx, secondes) {
+    const n = Math.floor(ctx.sampleRate * secondes);
+    const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let dernier = 0;
+    for (let i = 0; i < n; i++) {
+      const blanc = Math.random() * 2 - 1;
+      dernier = (dernier + 0.02 * blanc) / 1.02;   // bruit brun, plus doux a l'oreille
+      d[i] = dernier * 3.2;
+    }
+    return buf;
+  }
+
+  function demarrerAudio() {
+    if (SON.pret || SON.mute) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    SON.ctx = ctx;
+    SON.gain = ctx.createGain();
+    SON.gain.gain.value = 0.9;
+    SON.gain.connect(ctx.destination);
+
+    const buf = bruitBuffer(ctx, 2);
+    const source = (type, freq, q) => {
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.loop = true;
+      const f = ctx.createBiquadFilter();
+      f.type = type; f.frequency.value = freq; if (q) f.Q.value = q;
+      const g = ctx.createGain(); g.gain.value = 0;
+      src.connect(f); f.connect(g); g.connect(SON.gain);
+      src.start();
+      return { src, f, g };
+    };
+
+    SON.moteur = source("lowpass", 300);
+    SON.foule = source("bandpass", 950, 0.8);
+    SON.vagues = source("lowpass", 520);
+    SON.pret = true;
+    majSon(0);
+  }
+
+  // volumes en fonction de ce qui vit dans la ville
+  function majSon(dt) {
+    if (!SON.pret) return;
+    const ctx = SON.ctx, t = ctx.currentTime;
+    if (ctx.state === "suspended") ctx.resume();
+    const r = SON.mute ? 0 : 1;
+
+    const voitures = etat.voitures.length + etat.camions.length * 2 + (etat.train ? 2 : 0);
+    const vMoteur = Math.min(0.5, 0.06 + voitures * 0.016) * r;
+    SON.moteur.g.gain.setTargetAtTime(vMoteur, t, 0.4);
+    SON.moteur.f.frequency.setTargetAtTime(230 + Math.min(320, voitures * 22), t, 0.6);
+
+    const gens = etat.pietons.length + etat.unites.length * 2;
+    SON.foule.g.gain.setTargetAtTime(Math.min(0.34, gens * 0.006) * r, t, 0.5);
+
+    // vagues : seulement pres de la mer
+    let mer = 0;
+    for (const b of etat.batiments) if (b.cle === "port" || b.cle === "plage_b" || b.cle === "phare") mer++;
+    mer += etat.sable.size > 20 ? 1 : 0;
+    const vaguesOn = etat.bateaux && etat.bateaux.length ? 1 : 0;
+    SON.vagues.g.gain.setTargetAtTime(Math.min(0.3, (mer * 0.05 + vaguesOn * 0.05)) * r, t, 0.8);
+
+    // oiseaux : jardins, parcs, arbres
+    const nature = etat.batiments.filter((b) => ["jardin", "roseraie", "parc", "place"].indexOf(b.cle) >= 0).length;
+    if (nature && !SON.mute && dt > 0) {
+      SON.prochainOiseau -= dt;
+      if (SON.prochainOiseau <= 0) {
+        SON.prochainOiseau = 2.5 + Math.random() * 5;
+        chanterOiseau();
+      }
+    }
+  }
+
+  function chanterOiseau() {
+    if (!SON.pret || SON.mute) return;
+    const ctx = SON.ctx;
+    const t0 = ctx.currentTime;
+    const notes = 2 + ((Math.random() * 3) | 0);
+    const base = 1900 + Math.random() * 1400;
+    for (let i = 0; i < notes; i++) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      const d = i * 0.11;
+      o.frequency.setValueAtTime(base * (0.85 + Math.random() * 0.4), t0 + d);
+      o.frequency.exponentialRampToValueAtTime(base * (1.25 + Math.random() * 0.5), t0 + d + 0.06);
+      g.gain.setValueAtTime(0, t0 + d);
+      g.gain.linearRampToValueAtTime(0.035, t0 + d + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0008, t0 + d + 0.09);
+      o.connect(g); g.connect(SON.gain);
+      o.start(t0 + d); o.stop(t0 + d + 0.12);
+    }
+  }
+
+  let chronoSon = 0;
+  function majSonAmbiant(dt) {
+    if (!SON.pret) return;
+    chronoSon += dt;
+    if (chronoSon < 0.5) return;
+    majSon(chronoSon);
+    chronoSon = 0;
   }
 
   /* ------------------------------ économie ------------------------------ */
@@ -2770,7 +2886,7 @@
       ctx.lineTo(sud.x, sud.y); ctx.lineTo(ouest.x, ouest.y);
       ctx.closePath();
       ctx.clip();
-      ctx.fillStyle = "rgba(8,18,48," + (etat.nuit * 0.34).toFixed(2) + ")";
+      ctx.fillStyle = "rgba(12,24,58," + (etat.nuit * 0.19).toFixed(2) + ")";
       ctx.fillRect(ouest.x, nord.y, est.x - ouest.x, sud.y - nord.y);
       ctx.restore();
     }
@@ -2789,7 +2905,12 @@
     if (etat.ecran === "jeu") {
       etat.temps += dt;
       if (etat.jourFixe) etat.heure = 12;
-      else etat.heure = (etat.heure + dt * (24 / 150)) % 24;
+      else {
+        // le jour prend son temps, la nuit defile plus vite
+        const deJour = etat.heure >= 6 && etat.heure < 19;
+        const vitesse = deJour ? 24 / 260 : 24 / 85;
+        etat.heure = (etat.heure + dt * vitesse) % 24;
+      }
       // nuit entre 19h et 6h
       const hh = etat.heure;
       let n = 0;
@@ -2800,7 +2921,7 @@
 
       etat.argent += etat.revenuSec * dt;
       majVoitures(dt); verifierCollisions(dt); majPietons(dt); majCamions(dt); majTrainBouge(dt); majAvions(dt); majMeteo(dt);
-      majAlertes(dt); majUnites(dt); majTraficHautBouge(dt); majBateauxCanal(dt); majHelico(dt); majFusee(dt); majExplosions(dt);
+      majAlertes(dt); majUnites(dt); majTraficHautBouge(dt); majBateauxCanal(dt); majHelico(dt); majFusee(dt); majExplosions(dt); majSonAmbiant(dt);
       for (const f of etat.flottants) f.t += dt;
       etat.flottants = etat.flottants.filter((f) => f.t < 1.3);
 
@@ -2923,7 +3044,6 @@
     bulle(etat.gomme ? "Mode démolition : touche un bâtiment" : "Mode construction");
     construireDock();
   });
-  $("#btn-son").addEventListener("click", () => { etat.son = !etat.son; $("#btn-son").textContent = etat.son ? "🔊" : "🔇"; });
   $("#btn-menu").addEventListener("click", () => { sauver(); statsAccueil(); afficher("accueil"); });
   $("#i-fermer").addEventListener("click", fermerInfo);
   $("#i-vendre").addEventListener("click", () => { if (etat.selection) demolir(etat.selection); });
@@ -2945,7 +3065,20 @@
     if (nom === "jeu") redim();
   }
 
+  $("#btn-son").addEventListener("click", () => {
+    SON.mute = !SON.mute;
+    $("#btn-son").textContent = SON.mute ? "🔇" : "🔊";
+    if (!SON.mute) {
+      demarrerAudio();
+      if (SON.pret) SON.gain.gain.setTargetAtTime(0.9, SON.ctx.currentTime, 0.2);
+    } else if (SON.pret) {
+      SON.gain.gain.setTargetAtTime(0, SON.ctx.currentTime, 0.2);
+    }
+    bulle(SON.mute ? "Son coupé" : "Son activé");
+  });
+
   $("#btn-jouer").addEventListener("click", () => {
+    demarrerAudio();
     const d = lire();
     if (d) charger(d); else nouvelleVille();
     genererSol(); genererDeco();
@@ -2978,6 +3111,7 @@
     voisinRoute: voisinRoute,
     typeSol: typeSol,
     G: G,
+    peutPoser: peutPoser,
     camC: cam,
     limiter: () => limiterCam(),
     caseCentre: () => ({ x: Math.round((cam.x / (TW / 2) + cam.y / (TH / 2)) / 2), y: Math.round((cam.y / (TH / 2) - cam.x / (TW / 2)) / 2) }),
