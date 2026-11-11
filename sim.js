@@ -32,6 +32,7 @@
 
   function typeSol(x, y) {
     if (etat.eau && etat.eau.has(x + "," + y)) return 2;
+    if (etat.sable && etat.sable.has(x + "," + y)) return 1;
     const d = x + y;
     if (d >= N + 10) return 2;
     if (d >= N + 6) return 1;
@@ -49,6 +50,7 @@
     pont:       { nom: "Pont",         cout: 140,  rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "pont" },
     canal:      { nom: "Canal d'eau",  cout: 30,   rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "canal" },
     viaduc:     { nom: "Viaduc (route dessous)", cout: 260, rev: 0, w: 1, h: 1, onglet: "route", niv: 2, type: "viaduc" },
+    sable:      { nom: "Sable (plage)", cout: 18,  rev: 0,    w: 1, h: 1, onglet: "plage",    niv: 1, type: "sable" },
     rondPoint:  { nom: "Rond-point",   cout: 320,  rev: 1,    w: 1, h: 1, onglet: "route",    niv: 2, type: "rond" },
 
     /* --- habitat --- */
@@ -100,6 +102,16 @@
     basket:     { nom: "Terrain basket",cout: 420, rev: 3,    w: 1, h: 1, onglet: "loisirs",  niv: 1, bonheur: 9, teinte: ["#c98a4a", "#e8e2d2"] },
     bibliotheque:{ nom: "Bibliothèque",cout: 900,  rev: 5,    w: 1, h: 1, onglet: "services", niv: 2, bonheur: 13, drapeau: true, teinte: ["#eae3d0", "#8a6a45"] },
     phare:      { nom: "Phare",        cout: 1200, rev: 9,    w: 1, h: 1, onglet: "plage",    niv: 2, bonheur: 6, plage: true, teinte: ["#f4f4ee", "#c8302f"] },
+    jardin:     { nom: "Jardin",       cout: 520,  rev: 4,    w: 1, h: 1, onglet: "loisirs",  niv: 1, bonheur: 14, teinte: ["#4f9b4a", "#3c7a38"] },
+    roseraie:   { nom: "Roseraie",     cout: 780,  rev: 6,    w: 1, h: 1, onglet: "loisirs",  niv: 2, bonheur: 18, teinte: ["#c0557a", "#3c7a38"] },
+    heliport:   { nom: "Héliport",     cout: 1500, rev: 12,   w: 1, h: 1, onglet: "services", niv: 3, bonheur: 5, teinte: ["#8f959c", "#5b6169"] },
+    fusee:      { nom: "Site de lancement", cout: 4200, rev: 26, w: 2, h: 2, onglet: "services", niv: 4, bonheur: 16, drapeau: true, teinte: ["#c9ccd2", "#6d737b"] },
+    tourBureaux:{ nom: "Tour de bureaux", cout: 1800, rev: 34, w: 1, h: 1, onglet: "commerce", niv: 3, bonheur: 2, teinte: ["#9fd3e0", "#5f8fa8"] },
+    tourHab:    { nom: "Tour d'habitation", cout: 1300, rev: 18, w: 1, h: 1, onglet: "habitat", niv: 2, habitants: 24, teinte: ["#f0e6d2", "#c9a97c"] },
+    obelisque:  { nom: "Obélisque",    cout: 1600, rev: 8,    w: 1, h: 1, onglet: "loisirs",  niv: 2, bonheur: 15, drapeau: true, teinte: ["#dcd3bd", "#b6ac93"] },
+    arc:        { nom: "Arc de triomphe", cout: 2600, rev: 12, w: 1, h: 1, onglet: "loisirs", niv: 3, bonheur: 20, drapeau: true, teinte: ["#e4dcc6", "#bdaf8c"] },
+    statueGeante:{ nom: "Grande statue", cout: 2200, rev: 9,  w: 1, h: 1, onglet: "loisirs",  niv: 3, bonheur: 18, teinte: ["#c8a15a", "#8f6f36"] },
+    tourHorloge:{ nom: "Tour horloge", cout: 1400, rev: 10,   w: 1, h: 1, onglet: "loisirs",  niv: 2, bonheur: 13, drapeau: true, teinte: ["#ece3cd", "#b1976a"] },
   };
 
   const ONGLETS = [
@@ -119,12 +131,18 @@
     rails: new Set(),
     itineraire: [],
     alertes: [],
+    bateauxCanal: [],
+    explosions: [],
+    helico: null,
+    fusee: null,
+    cheminEau: [],
     unites: [],
     prochaineAlerte: 26,
     calme: 0,
     interventions: 0,
     eau: new Set(),          // canaux / rivieres traces par le joueur
     viaducs: new Set(),      // ponts aeriens au-dessus des routes
+    sable: new Set(),        // plage dessinee par le joueur
     traficHaut: [],          // vehicules qui roulent sur les viaducs
     jourFixe: true,          // le joueur reste en pleine journee
     batiments: [],
@@ -555,6 +573,117 @@
         }
         break;
       }
+      case "jardin": {
+        losange(ctx, 0, 0, W * 0.95, Hh * 0.95, "#5aa855");
+        ctx.fillStyle = "#3f8a3c";
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * 6.283 + 0.4;
+          ctx.beginPath(); ctx.arc(Math.cos(a) * W * 0.28, Math.sin(a) * Hh * 0.28 - 4, 3.4, 0, 6.283); ctx.fill();
+        }
+        ctx.fillStyle = "#e8dfc8";
+        ctx.beginPath(); ctx.ellipse(0, 2, W * 0.18, Hh * 0.18, 0, 0, 6.283); ctx.fill();
+        ctx.fillStyle = "#6fbf6a";
+        for (let i = 0; i < 4; i++) ctx.fillRect(-1, -3 - i * 2.2, 2, 1.4);
+        break;
+      }
+      case "roseraie": {
+        losange(ctx, 0, 0, W * 0.95, Hh * 0.95, "#4f9b4a");
+        for (let i = 0; i < 9; i++) {
+          const a = i * 1.7;
+          ctx.fillStyle = i % 2 ? "#c0557a" : "#e07a9c";
+          const rr = W * 0.3;
+          ctx.beginPath(); ctx.arc(Math.cos(a) * rr, Math.sin(a) * rr * 0.6 - 3, 2.6, 0, 6.283); ctx.fill();
+        }
+        ctx.fillStyle = "#efe6d0"; ctx.fillRect(-1.4, -14, 2.8, 12);
+        break;
+      }
+      case "heliport": {
+        losange(ctx, 0, 0, W * 0.96, Hh * 0.96, "#8f959c");
+        ctx.fillStyle = "#5b6169";
+        ctx.beginPath(); ctx.arc(0, -3, W * 0.3, 0, 6.283); ctx.fill();
+        ctx.font = "bold 13px system-ui"; ctx.fillStyle = "#f5cf1b";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("H", 0, -3);
+        break;
+      }
+      case "fusee": {
+        prisme(ctx, 0, 0, W * 0.94, Hh * 0.94, 8, "#b9bcc2", "#8e9299", "#d3d6db");
+        // rampe
+        ctx.fillStyle = "#6d737b";
+        ctx.fillRect(-W * 0.28, -6, W * 0.56, 5);
+        // la fusee
+        ctx.save();
+        ctx.translate(0, -10);
+        const deco = etat.fusee ? etat.fusee.t : 0;
+        const dy = deco > 0 ? -deco * 26 : 0;
+        ctx.translate(0, dy);
+        ctx.fillStyle = "#f4f6f8";
+        ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(5, -8); ctx.lineTo(-5, -8); ctx.closePath(); ctx.fill();
+        ctx.fillRect(-5, -8, 10, 16);
+        ctx.fillStyle = "#c8302f"; ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(3, -18); ctx.lineTo(-3, -18); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#2f6fd0"; ctx.fillRect(-5, -2, 10, 3);
+        if (deco > 0) {
+          ctx.fillStyle = "rgba(255,180,60,0.9)";
+          ctx.beginPath(); ctx.moveTo(-4, 8); ctx.lineTo(0, 8 + 8 + Math.random() * 8); ctx.lineTo(4, 8); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = "rgba(230,230,230,0.45)";
+          ctx.beginPath(); ctx.arc(0, 16 + Math.random() * 6, 7 + deco * 8, 0, 6.283); ctx.fill();
+        }
+        ctx.restore();
+        break;
+      }
+      case "tourBureaux": {
+        prisme(ctx, 0, 0, W * 0.7, Hh * 0.7, 62, c1, eclaircir(c1, -0.22), c2);
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        for (let r = 0; r < 7; r++) for (let c = -1; c <= 1; c++) ctx.fillRect(c * 8 - 2.2, -58 + r * 8, 4.4, 3.2);
+        ctx.fillStyle = "#5b6169"; ctx.fillRect(-1, -70, 2, 10);
+        break;
+      }
+      case "tourHab": {
+        prisme(ctx, 0, 0, W * 0.78, Hh * 0.78, 44, c1, eclaircir(c1, -0.2), c2);
+        for (let r = 0; r < 5; r++) {
+          ctx.fillStyle = nuit ? "rgba(255,225,150,0.95)" : "rgba(120,150,175,0.8)";
+          for (let c = -1; c <= 1; c++) ctx.fillRect(c * 9 - 2.4, -40 + r * 8, 4.8, 3.6);
+        }
+        ctx.fillStyle = "#b9a882"; ctx.fillRect(-9, -46, 18, 3);
+        break;
+      }
+      case "obelisque": {
+        losange(ctx, 0, 0, W * 0.8, Hh * 0.8, "#d8cfb8");
+        ctx.fillStyle = "#dcd3bd";
+        ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-2.4, -34); ctx.lineTo(2.4, -34); ctx.lineTo(5, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#f0e9d6";
+        ctx.beginPath(); ctx.moveTo(-2.4, -34); ctx.lineTo(0, -42); ctx.lineTo(2.4, -34); ctx.closePath(); ctx.fill();
+        break;
+      }
+      case "arc": {
+        losange(ctx, 0, 0, W * 0.92, Hh * 0.92, "#ddd4bd");
+        ctx.fillStyle = "#e4dcc6";
+        ctx.fillRect(-14, -30, 7, 30); ctx.fillRect(7, -30, 7, 30);
+        ctx.fillRect(-14, -34, 28, 7);
+        ctx.fillStyle = "#b8ad92";
+        ctx.fillRect(-14, -30, 2, 30); ctx.fillRect(14, -30, 2, 30);
+        break;
+      }
+      case "statueGeante": {
+        losange(ctx, 0, 0, W * 0.86, Hh * 0.86, "#cfc6ae");
+        ctx.fillStyle = "#c8a15a";
+        ctx.beginPath(); ctx.arc(0, -22, 5, 0, 6.283); ctx.fill();
+        ctx.fillRect(-4, -18, 8, 14);
+        ctx.fillRect(-9, -16, 5, 3);
+        ctx.fillStyle = "#8f6f36";
+        ctx.fillRect(-6, -4, 12, 4);
+        break;
+      }
+      case "tourHorloge": {
+        prisme(ctx, 0, 0, W * 0.62, Hh * 0.62, 40, c1, eclaircir(c1, -0.2), c2);
+        ctx.fillStyle = "#f4efdd";
+        ctx.beginPath(); ctx.arc(0, -34, 5.4, 0, 6.283); ctx.fill();
+        ctx.strokeStyle = "#3a3a3a"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, -34); ctx.lineTo(0, -37.4); ctx.moveTo(0, -34); ctx.lineTo(2.6, -33); ctx.stroke();
+        ctx.fillStyle = "#b1976a";
+        ctx.beginPath(); ctx.moveTo(-7, -41); ctx.lineTo(0, -48); ctx.lineTo(7, -41); ctx.closePath(); ctx.fill();
+        break;
+      }
       case "bibliotheque": {
         prisme(ctx, 0, 0, W * 0.88, Hh * 0.88, 18, eclaircir(c1, -0.02), eclaircir(c1, -0.16), eclaircir(c1, 0.06));
         // colonnes
@@ -624,6 +753,8 @@
         break;
       }
       case "plage_b": {
+        // le sable et les parasols sont dessines par le sol et les accessoires
+
         prisme(ctx, 0, 0, W * 0.7, Hh * 0.7, 14, "#f6ecd0", "#cdbf9c", c2);
         ctx.fillStyle = c2;
         ctx.beginPath(); ctx.moveTo(-W * 0.38, -12); ctx.lineTo(0, -12 - Hh * 0.38); ctx.lineTo(W * 0.38, -12); ctx.lineTo(0, -12 + Hh * 0.38); ctx.closePath(); ctx.fill();
@@ -1069,6 +1200,13 @@
 
   function peutPoser(cle, x, y) {
     const m = CAT[cle];
+    if (cle === "sable") {
+      if (x < 0 || y < 0 || x >= N || y >= N) return "Hors de la ville";
+      if (etat.sable.has(x + "," + y)) return "Il y a déjà du sable";
+      if (G(x, y)) return "Case occupée";
+      if (typeSol(x, y) === 2) return "Le sable ne se pose pas sur l'eau";
+      return null;
+    }
     if (cle === "viaduc") {
       if (x < 0 || y < 0 || x >= N || y >= N) return "Hors de la ville";
       if (etat.viaducs.has(x + "," + y)) return "Un viaduc est déjà là";
@@ -1137,6 +1275,15 @@
     empilerHisto();
     if (etat.argent < m.cout) { etat.histo.pop(); if (!silence) { bulle("Il te manque " + fmt(m.cout - etat.argent)); son(180, 0.12, "square", 0.05); } return false; }
     etat.argent -= m.cout;
+    if (cle === "sable") {
+      etat.sable.add(x + "," + y);
+      regenererSol();
+      son(300, 0.1, "sine", 0.04);
+      etat.modifie = true; sauver();
+      const ps = iso(x, y);
+      flottant("-" + fmt(m.cout), ps.x, ps.y - 10, "#ffd2da");
+      return true;
+    }
     if (cle === "viaduc") {
       etat.viaducs.add(x + "," + y);
       majTraficHaut();
@@ -1177,6 +1324,17 @@
     flottant("-" + fmt(m.cout), p.x, p.y - 10, "#ffd2da");
     if (cle === "rail") majTrain();
     return true;
+  }
+
+  function retirerSable(x, y) {
+    const k = x + "," + y;
+    if (!etat.sable.has(k)) return;
+    empilerHisto();
+    etat.sable.delete(k);
+    etat.argent += Math.round(CAT.sable.cout * 0.5);
+    regenererSol(); etat.modifie = true; sauver();
+    const p = iso(x, y);
+    flottant("+" + fmt(Math.round(CAT.sable.cout * 0.5)), p.x, p.y - 10, "#9fe0a8");
   }
 
   function retirerViaduc(x, y) {
@@ -1489,6 +1647,190 @@
       ctx.fillRect(x - 3, y - 3.4, 3, 2.4); ctx.fillRect(x + 1, y - 3.4, 3, 2.4);
     }
   }
+
+  /* ------------------------------ vie des lieux et trafic aerien ------------------------------ */
+  const COUL_PARASOL = ["#e5484d", "#f5cf1b", "#009460", "#2f6fd0", "#f08a3c"];
+
+  function graine(x, y) {
+    let h = (x * 73856093) ^ (y * 19349663);
+    h = (h ^ (h >>> 13)) * 1274126177;
+    return Math.abs(h % 1000) / 1000;
+  }
+
+  // parasols et baigneurs sur le sable dessine
+  function dessinerSable() {
+    const cases = [...etat.sable];
+    for (const k of cases) {
+      const [x, y] = k.split(",").map(Number);
+      const g = graine(x, y);
+      if (g > 0.42) continue;                 // tous les sable ne portent pas un parasol
+      if (G(x, y)) continue;                  // rien sur une case occupee
+      const p = iso(x, y);
+      const c = COUL_PARASOL[(g * 100) % COUL_PARASOL.length | 0];
+      // mat
+      ctx.strokeStyle = "#8a7250"; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y - 2); ctx.lineTo(p.x, p.y - 13); ctx.stroke();
+      // toile
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.moveTo(p.x - 8, p.y - 12); ctx.lineTo(p.x + 8, p.y - 12);
+      ctx.lineTo(p.x, p.y - 18); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - 12); ctx.lineTo(p.x + 8, p.y - 12); ctx.lineTo(p.x, p.y - 18); ctx.closePath(); ctx.fill();
+      // serviette
+      if (g < 0.2) {
+        ctx.fillStyle = ["#ffe08a", "#ffb3c1", "#a8e0ff"][(g * 60) | 0 % 3];
+        ctx.fillRect(p.x - 9, p.y + 1, 6, 2.6);
+      }
+    }
+  }
+
+  // nageurs dans la piscine
+  function dessinerNageurs() {
+    for (const b of etat.batiments) {
+      if (b.cle !== "piscine") continue;
+      const p = iso(b.x + (b.w - 1) / 2, b.y + (b.h - 1) / 2);
+      for (let i = 0; i < 3; i++) {
+        const a = etat.temps * (0.5 + i * 0.18) + i * 2.1;
+        const x = p.x + Math.cos(a) * 9;
+        const y = p.y - 4 + Math.sin(a) * 3.5;
+        ctx.fillStyle = ["#ffd9a8", "#f0b98a", "#ffe4bc"][i];
+        ctx.beginPath(); ctx.arc(x, y, 1.8, 0, 6.283); ctx.fill();
+        ctx.fillStyle = "#e5484d";
+        ctx.beginPath(); ctx.arc(x, y - 1.6, 1.1, 0, 6.283); ctx.fill();
+      }
+    }
+  }
+
+  // bateaux qui remontent le canal jusqu'a la mer
+  function majBateauxCanal(dt) {
+    const cases = [...etat.eau].map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; });
+    etat.cheminEau = cases;
+    if (cases.length < 3) { etat.bateauxCanal = []; return; }
+    // le canal communique-t-il avec la mer ?
+    let toucheMer = false;
+    for (const c of cases) {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (!etat.eau.has((c.x + dx) + "," + (c.y + dy)) && typeSol(c.x + dx, c.y + dy) === 2) toucheMer = true;
+      }
+    }
+    etat.eauRelieMer = toucheMer;
+    if (!etat.bateauxCanal) etat.bateauxCanal = [];
+    const cible = Math.min(4, Math.max(1, Math.floor(cases.length / 5)));
+    while (etat.bateauxCanal.length > cible) etat.bateauxCanal.pop();
+    while (etat.bateauxCanal.length < cible) {
+      etat.bateauxCanal.push({
+        i: (Math.random() * cases.length) | 0, t: 0, sens: Math.random() < 0.5 ? 1 : -1,
+        v: 0.5 + Math.random() * 0.5, coul: ["#f4f6f8", "#2f6fd0", "#c8302f", "#e8b23a"][(Math.random() * 4) | 0],
+      });
+    }
+    for (const bt of etat.bateauxCanal) {
+      bt.t += dt * bt.v;
+      if (bt.t < 1) continue;
+      bt.t = 0;
+      bt.i += bt.sens;
+      if (bt.i >= cases.length - 1 || bt.i <= 0) bt.sens *= -1;
+    }
+  }
+
+  function dessinerBateauxCanal() {
+    const ch = etat.cheminEau;
+    if (!ch || ch.length < 2 || !etat.bateauxCanal) return;
+    for (const bt of etat.bateauxCanal) {
+      const a = ch[Math.max(0, Math.min(ch.length - 1, bt.i))];
+      const b2 = ch[Math.max(0, Math.min(ch.length - 1, bt.i + bt.sens))] || a;
+      const p = iso(a.x + (b2.x - a.x) * bt.t, a.y + (b2.y - a.y) * bt.t);
+      ctx.save(); ctx.translate(p.x, p.y);
+      ctx.fillStyle = "rgba(255,255,255,0.3)";
+      ctx.beginPath(); ctx.ellipse(0, 1, 8, 3, 0, 0, 6.283); ctx.fill();
+      ctx.fillStyle = bt.coul;
+      ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(7, 0); ctx.lineTo(5, 4); ctx.lineTo(-5, 4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#f4f6f8"; ctx.fillRect(-2, -3, 4, 3);
+      ctx.restore();
+    }
+  }
+
+  // helicoptere qui survole la ville
+  function majHelico(dt) {
+    const a = etat.batiments.some((b) => b.cle === "heliport" || b.cle === "hopital");
+    if (!a) { etat.helico = null; return; }
+    if (!etat.helico) etat.helico = { a: Math.random() * 6.28, r: 6 + Math.random() * 6, alt: 90, t: 0 };
+    const h = etat.helico;
+    h.t += dt;
+    h.a += dt * 0.26;
+    h.gx = Math.floor(N / 2) + Math.cos(h.a) * h.r;
+    h.gy = Math.floor(N / 2) + Math.sin(h.a) * h.r;
+  }
+
+  function dessinerHelico() {
+    const h = etat.helico;
+    if (!h) return;
+    const p = iso(h.gx, h.gy);
+    const y = p.y - h.alt;
+    ctx.save(); ctx.translate(p.x, y);
+    // ombre au sol
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.beginPath(); ctx.ellipse(0, h.alt, 7, 3, 0, 0, 6.283); ctx.fill();
+    // rotor
+    ctx.strokeStyle = "rgba(230,235,240,0.75)"; ctx.lineWidth = 1.6;
+    const rl = 13 + Math.sin(etat.temps * 22) * 3;
+    ctx.beginPath(); ctx.moveTo(-rl, -4); ctx.lineTo(rl, -4); ctx.stroke();
+    // corps
+    ctx.fillStyle = "#e9edf2";
+    ctx.beginPath(); ctx.ellipse(0, 0, 7, 3.6, 0, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "#2f6fd0"; ctx.fillRect(-5, -1, 4, 2);
+    ctx.fillStyle = "#9aa4ad"; ctx.fillRect(6, -1, 6, 1.6);
+    ctx.restore();
+  }
+
+  // lancement de fusee
+  function majFusee(dt) {
+    const site = etat.batiments.find((b) => b.cle === "fusee");
+    if (!site) { etat.fusee = null; return; }
+    if (!etat.fusee) etat.fusee = { t: 0, attente: 22 + Math.random() * 25 };
+    const f = etat.fusee;
+    if (f.t > 0) {
+      f.t += dt;
+      if (f.t > 4.5) { f.t = 0; f.attente = 26 + Math.random() * 28; }
+      return;
+    }
+    f.attente -= dt;
+    if (f.attente <= 0) { f.t = 0.01; son(180, 0.5, "sawtooth", 0.05); }
+  }
+
+  // collisions : rare, avec fumee et alerte
+  function collisionVehicule(x, y) {
+    const p = iso(x, y);
+    etat.explosions = etat.explosions || [];
+    etat.explosions.push({ x: p.x, y: p.y, t: 0 });
+    son(90, 0.5, "sawtooth", 0.09);
+    if (etat.alertes.length < 2 && aBatiment("hopital")) {
+      etat.alertes.push({ type: "accident", x, y, t: 0, duree: ALERTES.accident.duree, unite: "ambulance", envoyee: false });
+      bulle("Collision sur la route : ambulance demandée 🚑");
+    }
+  }
+
+  function majExplosions(dt) {
+    if (!etat.explosions) etat.explosions = [];
+    for (const e of etat.explosions) e.t += dt;
+    etat.explosions = etat.explosions.filter((e) => e.t < 1.6);
+  }
+
+  function dessinerExplosions() {
+    for (const e of etat.explosions || []) {
+      const u = e.t / 1.6;
+      ctx.save(); ctx.translate(e.x, e.y);
+      ctx.globalAlpha = 1 - u;
+      ctx.fillStyle = "#f5a623";
+      ctx.beginPath(); ctx.arc(0, -4, 4 + u * 16, 0, 6.283); ctx.fill();
+      ctx.fillStyle = "rgba(90,90,90,0.8)";
+      ctx.beginPath(); ctx.arc(0, -8 - u * 18, 3 + u * 10, 0, 6.283); ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   /* ------------------------------ économie ------------------------------ */
   function gagnerXp(n) {
     etat.xp += n;
@@ -1564,36 +1906,61 @@
   }
 
   // piétons : marcheurs le long des rues, joueurs dans les parcs
+  // collisions rares entre vehicules sur une meme case
+  let chronoCollision = 0;
+  function verifierCollisions(dt) {
+    chronoCollision -= dt;
+    if (chronoCollision > 0) return;
+    chronoCollision = 1.5;
+    if (etat.voitures.length < 6) return;
+    if (Math.random() > 0.06) return;
+    const vus = new Map();
+    for (const v of etat.voitures) {
+      const k = v.gx + "," + v.gy;
+      if (vus.has(k)) { collisionVehicule(v.gx, v.gy); return; }
+      vus.set(k, v);
+    }
+  }
+
   function majPietons(dt) {
     const rs = trottoirs();
-    const parcs = etat.batiments.filter((b) => ["parc", "place", "monument", "stade", "marcheC", "plage_b", "piscine", "basket", "mosquee", "eglise"].indexOf(b.cle) >= 0);
-    const interets = etat.batiments.filter((b) => ["monument", "stade", "hotel", "aeroport", "port", "plage_b", "mosquee", "eglise", "marcheC"].indexOf(b.cle) >= 0);
-    // touristes : quelques promeneurs distincts pres des curiosites
-    const cibleT = clamp(interets.length * 2, 0, 22);
+    const parcs = etat.batiments.filter((b) => ["parc", "place", "monument", "stade", "marcheC", "plage_b", "piscine", "basket", "mosquee", "eglise", "jardin"].indexOf(b.cle) >= 0);
+    const interets = etat.batiments.filter((b) => ["monument", "stade", "hotel", "aeroport", "port", "plage_b", "mosquee", "eglise", "marcheC", "jardin"].indexOf(b.cle) >= 0);
+
+    // --- touristes : devant les curiosites, jamais dans les murs ---
+    const cibleT = clamp(interets.length * 2, 0, 20);
     let touristes = etat.pietons.filter((p) => p.mode === "touriste").length;
-    while (touristes < cibleT) {
+    while (touristes < cibleT && interets.length) {
       const b = interets[(Math.random() * interets.length) | 0];
-      const p = {
-        mode: "touriste", base: { x: b.x + (Math.random() - 0.5) * b.w, y: b.y + (Math.random() - 0.5) * b.h },
-        gx: 0, gy: 0, t: 0, ph: Math.random() * 6.28, coul: teintePerso(), cote: 1,
-      };
-      p.gx = p.base.x; p.gy = p.base.y;
-      etat.pietons.push(p);
+      const px = b.x + (Math.random() - 0.5) * (b.w + 1);
+      const py = b.y + b.h - 0.5 + Math.random() * 1.2;   // devant l'entree
+      etat.pietons.push({ mode: "touriste", base: { x: px, y: py }, gx: px, gy: py, t: Math.random() * 3, ph: Math.random() * 6.28, coul: teintePerso(), cote: 1 });
       touristes++;
     }
-    const cible = clamp(Math.floor(rs.length / 1.3) + parcs.length * 2, 0, 70);
-    while (etat.pietons.length < cible) {
-      if (parcs.length && Math.random() < 0.28) {
-        const b = parcs[(Math.random() * parcs.length) | 0];
-        const p = { mode: "joue", gx: b.x + b.w / 2 + (Math.random() - 0.5) * b.w * 0.6, gy: b.y + b.h / 2 + (Math.random() - 0.5) * b.h * 0.6, t: 0, ph: Math.random() * 6.28, coul: teintePerso(), base: null };
-        p.base = { x: p.gx, y: p.gy };
-        etat.pietons.push(p);
-      } else if (rs.length) {
-        const r = rs[(Math.random() * rs.length) | 0];
-        etat.pietons.push({ mode: "marche", gx: r.x, gy: r.y, tx: r.x, ty: r.y, t: 1, v: 0.25 + Math.random() * 0.3, ph: Math.random() * 6.28, coul: teintePerso(), px: r.x, py: r.y, cote: Math.random() < 0.5 ? -1 : 1 });
-      } else break;
+
+    // --- gens qui profitent des lieux de loisirs, poses DEVANT le batiment ---
+    const cibleJ = clamp(parcs.length * 3, 0, 46);
+    let joueurs = etat.pietons.filter((p) => p.mode === "joue").length;
+    while (joueurs < cibleJ && parcs.length) {
+      const b = parcs[(Math.random() * parcs.length) | 0];
+      const px = b.x + (Math.random() - 0.5) * (b.w + 1.2);
+      const py = b.y + b.h - 0.35 + Math.random() * 0.9;
+      const p = { mode: "joue", gx: px, gy: py, t: Math.random() * 5, ph: Math.random() * 6.28, coul: teintePerso(), base: { x: px, y: py }, loisir: b.cle };
+      etat.pietons.push(p);
+      joueurs++;
     }
-    if (etat.pietons.length > cible + 6) etat.pietons.length = cible;
+
+    // --- marcheurs : uniquement sur les trottoirs, et leur nombre suit le reseau pieton ---
+    const cible = clamp(Math.floor(rs.length * 1.8) + parcs.length * 2, 0, 90);
+    const marcheurs = () => etat.pietons.filter((p) => p.mode === "marche").length;
+    let garde = 0;
+    while (marcheurs() < cible && rs.length && garde < 60) {
+      garde++;
+      const r = rs[(Math.random() * rs.length) | 0];
+      etat.pietons.push({ mode: "marche", gx: r.x, gy: r.y, tx: r.x, ty: r.y, t: 1, v: 0.25 + Math.random() * 0.3, ph: Math.random() * 6.28, coul: teintePerso(), px: r.x, py: r.y, cote: Math.random() < 0.5 ? -1 : 1 });
+    }
+    if (etat.pietons.length > cible + cibleT + cibleJ + 20) etat.pietons.length = cible + cibleT + cibleJ + 20;
+
     for (const p of etat.pietons) {
       p.ph += dt * (p.mode === "marche" ? 7 : 3);
       if (p.mode === "touriste") {
@@ -1609,7 +1976,7 @@
       }
       if (p.mode === "joue") {
         p.t += dt;
-        if (p.t > 6) { p.t = 0; p.base.x += (Math.random() - 0.5) * 0.5; p.base.y += (Math.random() - 0.5) * 0.5; }
+        if (p.t > 6) { p.t = 0; p.base.x += (Math.random() - 0.5) * 0.7; p.base.y += (Math.random() - 0.5) * 0.4; }
         p.gx = p.base.x; p.gy = p.base.y;
         continue;
       }
@@ -1710,25 +2077,53 @@
   }
 
   // train : se forme quand le réseau de rails est assez long
-  // Itineraire continu sur les rails : parcours en profondeur, puis aller-retour.
+  // Itineraire continu sur les rails : accepte les 8 directions (diagonales comprises)
+  // et relie aussi les rails voisins a moins de 1,5 case, comme on les trace au doigt.
   function construireItineraire() {
     const rs = rails();
     if (rs.length < 2) return [];
     const k = (p) => p.x + "," + p.y;
-    const dispo = new Set(rs.map(k));
+    const parCle = new Map(rs.map((p) => [k(p), p]));
+    const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+    const voisinsDe = (p) => {
+      const out = [];
+      for (const [dx, dy] of DIRS) {
+        const q = parCle.get((p.x + dx) + "," + (p.y + dy));
+        if (q) out.push(q);
+      }
+      // rattrapage : rails proches mais pas exactement adjacents
+      if (!out.length) {
+        for (const q of rs) {
+          if (q === p) continue;
+          if (Math.abs(q.x - p.x) <= 1.5 && Math.abs(q.y - p.y) <= 1.5) out.push(q);
+        }
+      }
+      return out;
+    };
+
+    // le plus long chemin possible : on demarre sur un rail d'extremite (1 seul voisin)
+    let depart = rs[0];
+    for (const q of rs) if (voisinsDe(q).length === 1) { depart = q; break; }
+
     const vus = new Set();
     const ordre = [];
-    const pile = [rs[0]];
-    while (pile.length) {
-      const p = pile.pop();
-      const cle = k(p);
-      if (vus.has(cle)) continue;
-      vus.add(cle); ordre.push(p);
-      // on avance en priorite vers le rail non visite le plus proche
-      const voisins = [[1, 0], [-1, 0], [0, 1], [0, -1]]
-        .map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy }))
-        .filter((q) => dispo.has(k(q)) && !vus.has(k(q)));
-      for (const q of voisins) pile.push(q);
+    let courant = depart;
+    while (courant) {
+      const cle = k(courant);
+      if (vus.has(cle)) break;
+      vus.add(cle); ordre.push(courant);
+      const libres = voisinsDe(courant).filter((q) => !vus.has(k(q)));
+      if (!libres.length) break;
+      // on prefere garder la meme direction pour un trajet lineaire
+      const dernier = ordre[ordre.length - 2];
+      let pick = libres[0];
+      if (dernier) {
+        const dx = courant.x - dernier.x, dy = courant.y - dernier.y;
+        const tout = libres.find((q) => q.x - courant.x === dx && q.y - courant.y === dy);
+        if (tout) pick = tout;
+      }
+      courant = pick;
     }
     return ordre;
   }
@@ -1738,7 +2133,7 @@
     etat.itineraire = it;
     if (it.length < 2) { etat.train = null; return; }
     if (!etat.train) {
-      etat.train = { i: 0, t: 0, sens: 1, gx: it[0].x, gy: it[0].y, tx: it[1].x, ty: it[1].y, trace: [], wagons: 3, v: 1.6 };
+      etat.train = { i: 0, t: 0, sens: 1, gx: it[0].x, gy: it[0].y, tx: it[1].x, ty: it[1].y, trace: [], wagons: 3, v: 1.1 };
     } else {
       // le reseau a change : on garde le train mais on le replace proprement
       if (etat.train.i >= it.length - 1) { etat.train.i = 0; etat.train.sens = 1; }
@@ -1752,7 +2147,7 @@
     const it = etat.itineraire;
     if (!it || it.length < 2) { etat.train = null; return; }
 
-    tr.t += dt * (tr.v || 1.6);
+    tr.t += dt * (tr.v || 1.1);
     while (tr.t >= 1) {
       tr.t -= 1;
       tr.i += tr.sens;
@@ -1924,7 +2319,7 @@
     try {
       localStorage.setItem(SAVE, JSON.stringify({
         argent: etat.argent, xp: etat.xp, niveau: etat.niveau, heure: etat.heure,
-        bat: etat.batiments.map((b) => [b.cle, b.x, b.y, b.niv, b.total]), rails: [...etat.rails], eau: [...etat.eau], viaducs: [...etat.viaducs], t: Date.now(),
+        bat: etat.batiments.map((b) => [b.cle, b.x, b.y, b.niv, b.total]), rails: [...etat.rails], eau: [...etat.eau], viaducs: [...etat.viaducs], sable: [...etat.sable], t: Date.now(),
       }));
     } catch (e) {}
   }
@@ -1955,6 +2350,7 @@
     etat.rails = new Set(data.rails || []);
     etat.eau = new Set(data.eau || []);
     etat.viaducs = new Set(data.viaducs || []);
+    etat.sable = new Set(data.sable || []);
     regenererSol();
     recalculer();
     const sec = clamp((Date.now() - (data.t || Date.now())) / 1000, 0, 7200);
@@ -2195,7 +2591,7 @@
       } else if (o.type === "t") {
         const tr = o.tr;
         // wagons derrière via la trace
-        const pas = 14;
+        const pas = 16;
         for (let w = tr.wagons; w >= 0; w--) {
           const idx = tr.trace.length - 1 - w * pas;
           let px = o.fx, py = o.fy;
@@ -2272,7 +2668,13 @@
     }
 
 
+    dessinerSable();
+    dessinerBateauxCanal();
     dessinerViaducs();
+
+    dessinerNageurs();
+    dessinerHelico();
+    dessinerExplosions();
 
     // unites de secours (police, pompiers, ambulance)
     for (const u of etat.unites) {
@@ -2370,8 +2772,8 @@
       etat.nuit = etat.jourFixe ? 0 : n;
 
       etat.argent += etat.revenuSec * dt;
-      majVoitures(dt); majPietons(dt); majCamions(dt); majTrainBouge(dt); majAvions(dt); majMeteo(dt);
-      majAlertes(dt); majUnites(dt); majTraficHautBouge(dt);
+      majVoitures(dt); verifierCollisions(dt); majPietons(dt); majCamions(dt); majTrainBouge(dt); majAvions(dt); majMeteo(dt);
+      majAlertes(dt); majUnites(dt); majTraficHautBouge(dt); majBateauxCanal(dt); majHelico(dt); majFusee(dt); majExplosions(dt);
       for (const f of etat.flottants) f.t += dt;
       etat.flottants = etat.flottants.filter((f) => f.t < 1.3);
 
@@ -2457,6 +2859,7 @@
     const b = G(c.x, c.y);
     if (etat.gomme) {
       const k = c.x + "," + c.y;
+      if (etat.sable.has(k)) { retirerSable(c.x, c.y); return; }
       if (etat.viaducs.has(k)) { retirerViaduc(c.x, c.y); return; }
       if (etat.eau.has(k)) { retirerEau(c.x, c.y); return; }
       if (etat.rails.has(k)) { retirerRail(c.x, c.y); return; }
@@ -2661,6 +3064,22 @@
     if (casePort) poser("port", casePort.x, casePort.y, true);
 
     // mine reliée au port par la route
+    // la plage est sablee et animee (parasols)
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      if (typeSol(x, y) === 1 && !G(x, y)) etat.sable.add(x + "," + y);
+    }
+    regenererSol();
+
+    // vie de la ville : jardins, helico, tourisme d'affaires, site de lancement
+    placeAuMieux("heliport", c + 9, c - 6, 8);
+    placeAuMieux("fusee", c - 10, c - 8, 10);
+    placeAuMieux("jardin", c + 2, c + 3, 5);
+    placeAuMieux("roseraie", c - 2, c + 3, 5);
+    placeAuMieux("tourBureaux", c + 4, c - 3, 7);
+    placeAuMieux("tourHab", c + 5, c - 4, 7);
+    placeAuMieux("obelisque", c + 1, c - 3, 6);
+    placeAuMieux("arc", c - 4, c - 4, 7);
+    placeAuMieux("tourHorloge", c + 3, c - 4, 6);
     const mine = placeAuMieux("mine", c + 9, c - 8, 10);
     if (mine && casePort) tracerRoute(c + 7, c - 5, mine.x, mine.y + 1);
 
