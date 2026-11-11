@@ -938,7 +938,7 @@
     son(120, 0.18, "sawtooth", 0.07);
     etat.modifie = true;
     sauver();
-    const p = iso(b.x + b.w / 2, b.y + b.h / 2);
+    const p = iso(b.x + (b.w - 1) / 2, b.y + (b.h - 1) / 2);
     flottant("+" + fmt(b.total * 0.5), p.x, p.y - 10, "#9fe0a8");
   }
 
@@ -1178,7 +1178,7 @@
     if (!aero.length) return;
     if (Math.random() < dt * 0.16 && etat.avions.length < 2) {
       const b = aero[(Math.random() * aero.length) | 0];
-      const p = iso(b.x + b.w / 2, b.y + b.h / 2);
+      const p = iso(b.x + (b.w - 1) / 2, b.y + (b.h - 1) / 2);
       etat.avions.push({ x: p.x - 40, y: p.y, vx: 95, vy: -14, t: 0, s: 1 });
     }
     for (const a of etat.avions) {
@@ -1529,7 +1529,7 @@
     const liste = [];
     for (const b of etat.batiments) {
       if (b.cle === "route" || b.cle === "rondPoint") continue;
-      liste.push({ prof: (b.x + b.w / 2) + (b.y + b.h / 2), type: "b", b });
+      liste.push({ prof: b.x + (b.w - 1) / 2 + b.y + (b.h - 1) / 2, type: "b", b });
     }
     for (const d of deco) {
       if (G(Math.floor(d.x), Math.floor(d.y))) continue;
@@ -1558,7 +1558,7 @@
     for (const o of liste) {
       if (o.type === "b") {
         const b = o.b;
-        const p = iso(b.x + b.w / 2, b.y + b.h / 2);
+        const p = iso(b.x + (b.w - 1) / 2, b.y + (b.h - 1) / 2);
         const age = etat.temps - b.nee;
         let sc = 1, dy = 0;
         if (age < 0.45) { const u = age / 0.45; sc = 0.6 + 0.4 * (1 - Math.pow(1 - u, 3)) + Math.sin(u * 3.14) * 0.1; dy = (1 - u) * -6; }
@@ -1646,7 +1646,7 @@
           ctx.restore();
         }
       }
-      const pc = iso(survol.x + m.w / 2, survol.y + m.h / 2);
+      const pc = iso(survol.x + (m.w - 1) / 2, survol.y + (m.h - 1) / 2);
       ctx.save(); ctx.translate(pc.x, pc.y); ctx.globalAlpha = 0.72;
       if (etat.choix !== "route" && etat.choix !== "rail") dessinerBatiment(ctx, etat.choix, 1, etat.temps, m.w, m.h);
       ctx.restore();
@@ -1714,7 +1714,7 @@
         const gen = etat.batiments.filter((b) => revenuBat(b) > 0);
         if (gen.length) {
           const b = gen[(Math.random() * gen.length) | 0];
-          const p = iso(b.x + b.w / 2, b.y + b.h / 2);
+          const p = iso(b.x + (b.w - 1) / 2, b.y + (b.h - 1) / 2);
           flottant("+" + fmt(revenuBat(b) * 2.4), p.x, p.y - 20, "#ffe680");
         }
       }
@@ -1870,7 +1870,7 @@
         chemin: mines.length && ports.length ? !!bfsRoute(mines[0], ports[0]) : null,
       };
     },
-    ecran: (gx, gy) => { const p = iso(gx + 0.5, gy + 0.5); return { x: (p.x - camV.x) * camV.z + L / 2, y: (p.y - camV.y) * camV.z + Hc / 2 }; },
+    ecran: (gx, gy) => { const p = iso(gx, gy); return { x: (p.x - camV.x) * camV.z + L / 2, y: (p.y - camV.y) * camV.z + Hc / 2 }; },
   };
 
   function placeAuMieux(cle, cx, cy, rayon) {
