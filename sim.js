@@ -1938,6 +1938,19 @@
       touristes++;
     }
 
+    // --- jardiniers qui entretiennent les jardins ---
+    const jardins = etat.batiments.filter((b) => b.cle === "jardin" || b.cle === "roseraie");
+    const cibleJa = Math.min(jardins.length, 14);
+    let jardiniers = etat.pietons.filter((p) => p.mode === "jardinier").length;
+    while (jardiniers < cibleJa && jardins.length) {
+      const b = jardins[jardiniers % jardins.length];
+      const px = b.x + (Math.random() - 0.5) * (b.w + 1.4);
+      const py = b.y + b.h - 0.2 + Math.random() * 0.8;
+      etat.pietons.push({ mode: "jardinier", base: { x: b.x + (b.w - 1) / 2, y: b.y + (b.h - 1) / 2 },
+        gx: px, gy: py, t: Math.random() * 3, ph: Math.random() * 6.28, coul: "#3f6b3a", cote: 1 });
+      jardiniers++;
+    }
+
     // --- gens qui profitent des lieux de loisirs, poses DEVANT le batiment ---
     const cibleJ = clamp(parcs.length * 3, 0, 46);
     let joueurs = etat.pietons.filter((p) => p.mode === "joue").length;
@@ -1963,6 +1976,13 @@
 
     for (const p of etat.pietons) {
       p.ph += dt * (p.mode === "marche" ? 7 : 3);
+      if (p.mode === "jardinier") {
+        p.t += dt;
+        const a = p.t * 0.45 + p.ph;
+        p.gx = p.base.x + Math.cos(a) * 1.15;
+        p.gy = p.base.y + Math.sin(a) * 0.75;
+        continue;
+      }
       if (p.mode === "touriste") {
         p.t += dt;
         if (p.t > 3.5) {
@@ -2583,7 +2603,14 @@
         dessinerVehicule(ctx, p.x, p.y, ang, "#e8b23a", 20, 8, true);
       } else if (o.type === "p") {
         const p = iso(o.fx, o.fy);
-        dessinerPetit(ctx, p.x, p.y, o.p.coul, o.p.ph, o.p.mode === "joue");
+        dessinerPetit(ctx, p.x, p.y, o.p.coul, o.p.ph, o.p.mode === "joue" || o.p.mode === "jardinier");
+        if (o.p.mode === "jardinier") {
+          // chapeau de paille et arrosoir
+          ctx.fillStyle = "#e8c66a";
+          ctx.beginPath(); ctx.ellipse(p.x, p.y - 15, 4, 1.7, 0, 0, 6.283); ctx.fill();
+          ctx.fillStyle = "#8aa0a8";
+          ctx.fillRect(p.x + 3, p.y - 6, 3.5, 2.6);
+        }
         if (o.p.mode === "joue") {
           ctx.fillStyle = "rgba(255,255,255,0.85)";
           ctx.beginPath(); ctx.arc(p.x + 2, p.y - 22 - Math.abs(Math.sin(o.p.ph)) * 4, 1.6, 0, 6.283); ctx.fill();
