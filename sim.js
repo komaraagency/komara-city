@@ -32,6 +32,7 @@
 
   function typeSol(x, y) {
     if (etat.eau && etat.eau.has(x + "," + y)) return 2;
+    if (etat.remblai && etat.remblai.has(x + "," + y)) return 0;
     if (etat.sable && etat.sable.has(x + "," + y)) return 1;
     const d = x + y;
     if (d >= N + 10) return 2;
@@ -51,6 +52,10 @@
     canal:      { nom: "Canal d'eau",  cout: 30,   rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "canal" },
     viaduc:     { nom: "Viaduc (route dessous)", cout: 260, rev: 0, w: 1, h: 1, onglet: "route", niv: 2, type: "viaduc" },
     sable:      { nom: "Sable (plage)", cout: 18,  rev: 0,    w: 1, h: 1, onglet: "plage",    niv: 1, type: "sable" },
+    boulevard:  { nom: "Boulevard",    cout: 26,   rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "route", large: 1.12 },
+    ruelle:     { nom: "Ruelle pavée", cout: 14,   rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "route", pave: true },
+    sensUnique: { nom: "Sens unique",  cout: 18,   rev: 0,    w: 1, h: 1, onglet: "route",    niv: 1, type: "route" },
+    remblai:    { nom: "Remblai (terre sur l'eau)", cout: 34, rev: 0, w: 1, h: 1, onglet: "route", niv: 1, type: "remblai" },
     rondPoint:  { nom: "Rond-point",   cout: 320,  rev: 1,    w: 1, h: 1, onglet: "route",    niv: 2, type: "rond" },
 
     /* --- habitat --- */
@@ -112,6 +117,27 @@
     arc:        { nom: "Arc de triomphe", cout: 2600, rev: 12, w: 1, h: 1, onglet: "loisirs", niv: 3, bonheur: 20, drapeau: true, teinte: ["#e4dcc6", "#bdaf8c"] },
     statueGeante:{ nom: "Grande statue", cout: 2200, rev: 9,  w: 1, h: 1, onglet: "loisirs",  niv: 3, bonheur: 18, teinte: ["#c8a15a", "#8f6f36"] },
     tourHorloge:{ nom: "Tour horloge", cout: 1400, rev: 10,   w: 1, h: 1, onglet: "loisirs",  niv: 2, bonheur: 13, drapeau: true, teinte: ["#ece3cd", "#b1976a"] },
+
+    // --- grands equipements de loisirs ---
+    aquarium:   { nom: "Aquarium",     cout: 3000, rev: 30,   w: 2, h: 2, onglet: "loisirs",  niv: 3, bonheur: 24, drapeau: true, teinte: ["#2f7fb8", "#1d5c8a"] },
+    parcAquatique:{ nom: "Parc aquatique (toboggans)", cout: 2600, rev: 26, w: 2, h: 2, onglet: "loisirs", niv: 3, bonheur: 26, teinte: ["#3fa9d8", "#f5cf1b"] },
+    grandeRoue: { nom: "Grande roue",  cout: 2200, rev: 22,   w: 2, h: 1, onglet: "loisirs",  niv: 3, bonheur: 22, teinte: ["#e5484d", "#f5cf1b"] },
+    zoo:        { nom: "Zoo",          cout: 2400, rev: 24,   w: 2, h: 2, onglet: "loisirs",  niv: 3, bonheur: 23, teinte: ["#4f9b4a", "#8a6b3d"] },
+    cirque:     { nom: "Cirque",       cout: 1800, rev: 18,   w: 2, h: 2, onglet: "loisirs",  niv: 2, bonheur: 18, teinte: ["#c8302f", "#f4f6f8"] },
+    manege:     { nom: "Manège",       cout: 620,  rev: 8,    w: 1, h: 1, onglet: "loisirs",  niv: 1, bonheur: 10, teinte: ["#f08a3c", "#f5cf1b"] },
+
+    // --- tres grandes tours ---
+    tourGeante: { nom: "Tour géante (60 étages)", cout: 5200, rev: 68, w: 1, h: 1, onglet: "commerce", niv: 5, bonheur: 4, elancee: 1.9, teinte: ["#cfe4ee", "#7fa8c4"] },
+    gratteCiel: { nom: "Gratte-ciel",  cout: 3400, rev: 46,   w: 1, h: 1, onglet: "commerce", niv: 4, bonheur: 3, elancee: 1.55, teinte: ["#d6e7f0", "#8fb4cb"] },
+    tourJumelle:{ nom: "Tours jumelles", cout: 4400, rev: 58, w: 2, h: 1, onglet: "commerce", niv: 4, bonheur: 5, elancee: 1.6, teinte: ["#e3edf4", "#93b6cc"] },
+    immeubleGrand:{ nom: "Grand immeuble (32 étages)", cout: 2200, rev: 30, w: 2, h: 2, onglet: "habitat", niv: 3, habitants: 60, elancee: 1.45, teinte: ["#f0e6d2", "#c2a67c"] },
+
+    // --- sur l'eau ---
+    ponton:     { nom: "Ponton",       cout: 240,  rev: 3,    w: 1, h: 1, onglet: "plage",    niv: 1, bonheur: 4, surEau: true, teinte: ["#a97f4d", "#7d5c36"] },
+    marina:     { nom: "Marina",       cout: 2600, rev: 30,   w: 2, h: 2, onglet: "plage",    niv: 3, bonheur: 20, surEau: true, drapeau: true, teinte: ["#f4f6f8", "#2f6fd0"] },
+    aquariumMarin:{ nom: "Aquarium flottant", cout: 3200, rev: 34, w: 2, h: 2, onglet: "plage", niv: 4, bonheur: 24, surEau: true, teinte: ["#2f7fb8", "#e8f4fa"] },
+    plateforme: { nom: "Plateforme sur l'eau", cout: 480, rev: 6, w: 1, h: 1, onglet: "plage", niv: 2, surEau: true, teinte: ["#8f959c", "#5b6169"] },
+    casinoFlottant:{ nom: "Casino flottant", cout: 4000, rev: 52, w: 2, h: 2, onglet: "plage", niv: 4, bonheur: 14, surEau: true, teinte: ["#c9a227", "#7a5f16"] },
   };
 
   const ONGLETS = [
@@ -143,6 +169,10 @@
     eau: new Set(),          // canaux / rivieres traces par le joueur
     viaducs: new Set(),      // ponts aeriens au-dessus des routes
     sable: new Set(),        // plage dessinee par le joueur
+    remblai: new Set(),      // terre gagnee sur l'eau
+    sensUnique: {},          // "x,y" -> { dx, dy }
+    secteurs: [],            // plaques de quartier nommees
+    modeSecteur: false,
     traficHaut: [],          // vehicules qui roulent sur les viaducs
     jourFixe: false,         // cycle jour/nuit actif par defaut
     batiments: [],
@@ -157,6 +187,9 @@
     pietons: [],
     camions: [],
     train: null,
+    trains: [],
+    itinerairesRails: [],
+    signatureRails: "",
     avions: [],
     bateaux: [],
     nuages: [],
@@ -684,6 +717,171 @@
         ctx.beginPath(); ctx.moveTo(-7, -41); ctx.lineTo(0, -48); ctx.lineTo(7, -41); ctx.closePath(); ctx.fill();
         break;
       }
+      case "aquarium": {
+        prisme(ctx, 0, 0, W * 0.9, Hh * 0.9, 26, "#2f7fb8", "#1d5c8a", "#5fb3e0");
+        // facade vitree et poissons
+        ctx.fillStyle = "rgba(210,240,255,0.85)";
+        ctx.fillRect(-W * 0.26, -22, W * 0.52, 16);
+        const t = etat.temps;
+        for (let i = 0; i < 4; i++) {
+          const fx = -W * 0.22 + ((t * 12 + i * 22) % (W * 0.44));
+          ctx.fillStyle = ["#f5cf1b", "#ff8a5b", "#f4f6f8"][i % 3];
+          ctx.beginPath(); ctx.ellipse(fx, -16 + (i % 2) * 6, 2.6, 1.5, 0, 0, 6.283); ctx.fill();
+        }
+        ctx.fillStyle = "#1d5c8a"; ctx.fillRect(-W * 0.3, -6, W * 0.6, 3);
+        break;
+      }
+      case "parcAquatique": {
+        losange(ctx, 0, 0, W * 0.96, Hh * 0.96, "#7fd0e8");
+        losange(ctx, 0, 0, W * 0.88, Hh * 0.88, "#4fb8d8");
+        // toboggans
+        const tb = (ox, oy, coul) => {
+          ctx.strokeStyle = coul; ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          ctx.moveTo(ox, oy - 22); ctx.quadraticCurveTo(ox + 10, oy - 12, ox + 4, oy);
+          ctx.stroke();
+        };
+        tb(-8, 4, "#f5cf1b"); tb(2, 6, "#e5484d"); tb(10, 2, "#009460");
+        // bassin et baigneurs
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        for (let i = 0; i < 3; i++) {
+          const a = etat.temps * 0.7 + i * 2;
+          ctx.beginPath(); ctx.arc(Math.cos(a) * 12, 6 + Math.sin(a) * 4, 1.8, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      case "grandeRoue": {
+        losange(ctx, 0, 0, W * 0.9, Hh * 0.9, "#cfd8c8");
+        const cx = 0, cy = -20, r = 17;
+        ctx.strokeStyle = "#9aa4ad"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-r * 0.7, 0); ctx.lineTo(cx, cy); ctx.lineTo(r * 0.7, 0); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.stroke();
+        for (let i = 0; i < 10; i++) {
+          const a = etat.temps * 0.5 + (i / 10) * 6.283;
+          const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+          ctx.strokeStyle = "rgba(140,150,160,0.8)"; ctx.lineWidth = 0.9;
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
+          ctx.fillStyle = ["#e5484d", "#f5cf1b", "#009460", "#2f6fd0"][i % 4];
+          ctx.beginPath(); ctx.arc(px, py, 2.6, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      case "zoo": {
+        losange(ctx, 0, 0, W * 0.96, Hh * 0.96, "#6aa85e");
+        ctx.fillStyle = "#8a6b3d";
+        ctx.fillRect(-W * 0.3, -12, W * 0.24, 12);
+        arbre(ctx, W * 0.26, Hh * 0.2, 7, true);
+        arbre(ctx, -W * 0.26, -Hh * 0.1, 6, false);
+        // enclos
+        ctx.strokeStyle = "#c9a227"; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.ellipse(0, 2, W * 0.32, Hh * 0.28, 0, 0, 6.283); ctx.stroke();
+        break;
+      }
+      case "cirque": {
+        losange(ctx, 0, 0, W * 0.94, Hh * 0.94, "#e8dcc0");
+        // chapiteau
+        ctx.fillStyle = "#c8302f";
+        ctx.beginPath(); ctx.moveTo(-W * 0.36, -2); ctx.lineTo(0, -30); ctx.lineTo(W * 0.36, -2); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#f4f6f8";
+        for (let i = -2; i <= 2; i++) {
+          ctx.beginPath(); ctx.moveTo(i * 8, -2); ctx.lineTo(i * 8 + 3.4, -2); ctx.lineTo(i * 8 + 1.7 + i * 2, -24); ctx.lineTo(i * 8 + i * 2, -24); ctx.closePath(); ctx.fill();
+        }
+        ctx.fillStyle = "#f5cf1b"; ctx.fillRect(-1.4, -38, 2.8, 8);
+        break;
+      }
+      case "manege": {
+        losange(ctx, 0, 0, W * 0.86, Hh * 0.86, "#e8dcc0");
+        ctx.fillStyle = "#f08a3c";
+        ctx.beginPath(); ctx.ellipse(0, -4, W * 0.28, Hh * 0.2, 0, 0, 6.283); ctx.fill();
+        const a0 = etat.temps * 1.6;
+        for (let i = 0; i < 5; i++) {
+          const a = a0 + (i / 5) * 6.283;
+          ctx.fillStyle = ["#f5cf1b", "#e5484d", "#009460", "#2f6fd0", "#f4f6f8"][i];
+          ctx.beginPath(); ctx.arc(Math.cos(a) * W * 0.18, -4 + Math.sin(a) * Hh * 0.13, 2.4, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      case "tourGeante":
+      case "gratteCiel": {
+        const e = (CAT[cle] && CAT[cle].elancee) || 1.6;
+        const haut = 40 * e;
+        prisme(ctx, 0, 0, W * 0.62, Hh * 0.62, haut, c1, eclaircir(c1, -0.24), c2);
+        for (let r = 0; r < Math.floor(haut / 6); r++) {
+          ctx.fillStyle = nuit ? "rgba(255,225,150,0.92)" : "rgba(255,255,255,0.5)";
+          for (let c = -1; c <= 1; c++) ctx.fillRect(c * 7 - 2, -haut + 5 + r * 6, 4, 2.6);
+        }
+        ctx.fillStyle = "#5b6169"; ctx.fillRect(-1, -haut - 10, 2, 10);
+        ctx.fillStyle = "#e5484d";
+        ctx.beginPath(); ctx.arc(0, -haut - 11, 1.4, 0, 6.283); ctx.fill();
+        break;
+      }
+      case "tourJumelle": {
+        const e = (CAT[cle] && CAT[cle].elancee) || 1.6;
+        const haut = 38 * e;
+        prisme(ctx, -W * 0.22, 0, W * 0.34, Hh * 0.42, haut, c1, eclaircir(c1, -0.22), c2);
+        prisme(ctx, W * 0.22, 0, W * 0.34, Hh * 0.42, haut * 0.92, c1, eclaircir(c1, -0.22), c2);
+        ctx.strokeStyle = "#9aa4ad"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-W * 0.12, -haut * 0.72); ctx.lineTo(W * 0.12, -haut * 0.7); ctx.stroke();
+        break;
+      }
+      case "immeubleGrand": {
+        const e = (CAT[cle] && CAT[cle].elancee) || 1.4;
+        const haut = 40 * e;
+        prisme(ctx, 0, 0, W * 0.82, Hh * 0.82, haut, c1, eclaircir(c1, -0.2), c2);
+        for (let r = 0; r < Math.floor(haut / 7); r++) {
+          ctx.fillStyle = nuit ? "rgba(255,225,150,0.9)" : "rgba(120,150,175,0.75)";
+          for (let c = -2; c <= 2; c++) ctx.fillRect(c * 7 - 2, -haut + 6 + r * 7, 4, 3);
+        }
+        break;
+      }
+      case "ponton": {
+        losange(ctx, 0, 0, W * 0.9, Hh * 0.9, "rgba(60,140,180,0.35)");
+        ctx.fillStyle = "#a97f4d";
+        ctx.beginPath();
+        ctx.moveTo(-W * 0.3, 0); ctx.lineTo(0, -Hh * 0.3); ctx.lineTo(W * 0.3, 0); ctx.lineTo(0, Hh * 0.3);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#7d5c36"; ctx.lineWidth = 1;
+        for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(i * 4, -3); ctx.lineTo(i * 4, 3); ctx.stroke(); }
+        break;
+      }
+      case "marina": {
+        losange(ctx, 0, 0, W * 1.9, Hh * 1.9, "rgba(60,140,180,0.35)");
+        // pontons
+        ctx.fillStyle = "#a97f4d";
+        for (let i = -1; i <= 1; i++) ctx.fillRect(-W * 0.7, i * Hh * 0.5 - 2, W * 1.4, 4);
+        // bateaux a quai
+        for (let i = 0; i < 3; i++) {
+          const bx = -W * 0.5 + i * W * 0.5;
+          const by = Math.sin(etat.temps * 1.2 + i) * 1.4;
+          ctx.fillStyle = ["#f4f6f8", "#2f6fd0", "#c8302f"][i];
+          ctx.beginPath(); ctx.ellipse(bx, by - Hh * 0.18, 7, 3, 0, 0, 6.283); ctx.fill();
+          ctx.fillStyle = "#f4f6f8"; ctx.fillRect(bx - 2, by - Hh * 0.18 - 4, 4, 3);
+        }
+        break;
+      }
+      case "aquariumMarin": {
+        losange(ctx, 0, 0, W * 1.9, Hh * 1.9, "rgba(60,140,180,0.35)");
+        prisme(ctx, 0, 0, W * 1.5, Hh * 1.5, 20, "#2f7fb8", "#1d5c8a", "#5fb3e0");
+        ctx.fillStyle = "rgba(210,240,255,0.8)";
+        for (let i = 0; i < 6; i++) {
+          const fx = -W * 0.3 + ((etat.temps * 9 + i * 17) % (W * 0.6));
+          ctx.beginPath(); ctx.ellipse(fx, -12 + (i % 3) * 4, 2.2, 1.3, 0, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      case "plateforme": {
+        losange(ctx, 0, 0, W * 0.9, Hh * 0.9, "rgba(60,140,180,0.35)");
+        prisme(ctx, 0, 0, W * 0.72, Hh * 0.72, 6, "#8f959c", "#5b6169", "#a8aeb5");
+        break;
+      }
+      case "casinoFlottant": {
+        losange(ctx, 0, 0, W * 1.9, Hh * 1.9, "rgba(60,140,180,0.35)");
+        prisme(ctx, 0, 0, W * 1.4, Hh * 1.4, 22, "#c9a227", "#7a5f16", "#e8c14a");
+        ctx.fillStyle = "#f5cf1b";
+        for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.arc(i * 9, -24, 1.6, 0, 6.283); ctx.fill(); }
+        ctx.fillStyle = "#e5484d"; ctx.fillRect(-W * 0.34, -28, W * 0.68, 3);
+        break;
+      }
       case "bibliotheque": {
         prisme(ctx, 0, 0, W * 0.88, Hh * 0.88, 18, eclaircir(c1, -0.02), eclaircir(c1, -0.16), eclaircir(c1, 0.06));
         // colonnes
@@ -1189,7 +1387,7 @@
     }
     etat.confirmeReset = false;
     etat.batiments = []; etat.grille.fill(null); etat.rails = new Set();
-    etat.train = null; etat.histo = []; etat.argent = 2500; etat.xp = 0;
+    etat.train = null; etat.trains = []; etat.signatureRails = ""; etat.histo = []; etat.argent = 2500; etat.xp = 0;
     etat.niveau = 1; etat.vague = 0; etat.heure = 8; etat.selection = null;
     etat.voitures.length = 0; etat.pietons.length = 0; etat.camions.length = 0;
     try { localStorage.removeItem(SAVE); } catch (e) {}
@@ -1201,6 +1399,13 @@
 
   function peutPoser(cle, x, y) {
     const m = CAT[cle];
+    if (cle === "remblai") {
+      if (x < 0 || y < 0 || x >= N || y >= N) return "Hors de la ville";
+      if (etat.remblai.has(x + "," + y)) return "Il y a déjà du remblai";
+      if (G(x, y)) return "Case occupée";
+      if (typeSol(x, y) !== 2) return "Le remblai se pose uniquement sur l'eau";
+      return null;
+    }
     if (cle === "sable") {
       if (x < 0 || y < 0 || x >= N || y >= N) return "Hors de la ville";
       if (etat.sable.has(x + "," + y)) return "Il y a déjà du sable";
@@ -1252,15 +1457,19 @@
       if (plage !== cases.length) return "À poser sur la plage";
       return null;
     }
+    if (m.surEau) {
+      if (eau !== cases.length) return "À poser sur l'eau";
+      return null;
+    }
     if (eau > 0) return "On ne construit pas sur l'eau";
-    if (plage > 0 && cle !== "route") return "La plage est réservée aux loisirs";
-    if (["route", "rail", "rondPoint", "trottoir"].indexOf(cle) >= 0) return null;
+    if (plage > 0 && ["route", "boulevard", "ruelle", "sensUnique", "trottoir"].indexOf(cle) < 0) return "La plage est réservée aux loisirs";
+    if (["route", "rail", "rondPoint", "trottoir", "boulevard", "ruelle", "sensUnique", "canal", "sable", "remblai", "viaduc"].indexOf(cle) >= 0) return null;
     // les bâtiments doivent toucher une route ou un rail
     let ok = false;
     for (const [cx, cy] of cases) {
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const v = G(cx + dx, cy + dy);
-        if (v && (v.cle === "route" || v.cle === "rondPoint" || v.cle === "rail" || v.cle === "trottoir")) { ok = true; break; }
+        if (v && (estVoie(v) || v.cle === "rail" || v.cle === "trottoir")) { ok = true; break; }
       }
       if (ok) break;
     }
@@ -1276,6 +1485,15 @@
     empilerHisto();
     if (etat.argent < m.cout) { etat.histo.pop(); if (!silence) { bulle("Il te manque " + fmt(m.cout - etat.argent)); son(180, 0.12, "square", 0.05); } return false; }
     etat.argent -= m.cout;
+    if (cle === "remblai") {
+      etat.remblai.add(x + "," + y);
+      regenererSol();
+      son(260, 0.12, "sine", 0.05);
+      etat.modifie = true; sauver();
+      const pr = iso(x, y);
+      flottant("-" + fmt(m.cout), pr.x, pr.y - 10, "#ffd2da");
+      return true;
+    }
     if (cle === "sable") {
       etat.sable.add(x + "," + y);
       regenererSol();
@@ -1314,6 +1532,14 @@
       majTrain();
       return true;
     }
+    if (cle === "sensUnique") {
+      // la direction suit le geste : on regarde la derniere voie posee
+      const d = etat.derniereVoie;
+      let dir = { dx: 1, dy: 0 };
+      if (d && Math.abs(d.x - x) + Math.abs(d.y - y) === 1) dir = { dx: x - d.x, dy: y - d.y };
+      etat.sensUnique[x + "," + y] = dir;
+    }
+    if (estVoie({ cle })) etat.derniereVoie = { x, y };
     const b = { cle, niv: 1, x, y, w: m.w, h: m.h, nee: etat.temps, total: m.cout };
     for (const [cx, cy] of casesDe(b)) etat.grille[cy * N + cx] = b;
     etat.batiments.push(b);
@@ -1325,6 +1551,17 @@
     flottant("-" + fmt(m.cout), p.x, p.y - 10, "#ffd2da");
     if (cle === "rail") majTrain();
     return true;
+  }
+
+  function retirerRemblai(x, y) {
+    const k = x + "," + y;
+    if (!etat.remblai.has(k)) return;
+    empilerHisto();
+    etat.remblai.delete(k);
+    etat.argent += Math.round(CAT.remblai.cout * 0.5);
+    regenererSol(); etat.modifie = true; sauver();
+    const p = iso(x, y);
+    flottant("+" + fmt(Math.round(CAT.remblai.cout * 0.5)), p.x, p.y - 10, "#9fe0a8");
   }
 
   function retirerSable(x, y) {
@@ -1410,6 +1647,7 @@
     for (const a of etat.alertes) { a.t += dt; }
     // une alerte non traitee finit par couter cher
     for (const a of etat.alertes) {
+      if (!a.envoyee && a.t > 1.4 && !a.echec) { try { deployer(a); } catch (e) {} }
       if (!a.envoyee && a.t > a.duree) {
         a.t = 0; a.envoyee = true; a.echec = true;
         etat.bonheur = clamp(etat.bonheur - 3, 0, 100);
@@ -1440,8 +1678,8 @@
     return u || null;
   }
 
-  function deployer() {
-    const a = etat.alertes.find((x) => !x.envoyee) || etat.alertes[0];
+  function deployer(cible) {
+    const a = cible || etat.alertes.find((x) => !x.envoyee) || etat.alertes[0];
     if (!a) { bulle("Aucune alerte en cours"); return; }
     const u = uniteDispo(a.unite);
     if (!u) { bulle("Aucune unité disponible : construis le bâtiment adapté"); return; }
@@ -1451,7 +1689,7 @@
     u.tx = a.x; u.ty = a.y;
     u.sirene = 1;
     son(620, 0.22, "sawtooth", 0.07);
-    bulle(ALERTES[a.type].nom + " : unité déployée 🚨");
+    bulle(ALERTES[a.type].nom + " : unité déployée automatiquement 🚨");
   }
 
   function majUnites(dt) {
@@ -1891,7 +2129,7 @@
     if (ctx.state === "suspended") ctx.resume();
     const r = SON.mute ? 0 : 1;
 
-    const voitures = etat.voitures.length + etat.camions.length * 2 + (etat.train ? 2 : 0);
+    const voitures = etat.voitures.length + etat.camions.length * 2 + (etat.trains ? etat.trains.length * 2 : 0);
     const vMoteur = Math.min(0.5, 0.06 + voitures * 0.016) * r;
     SON.moteur.g.gain.setTargetAtTime(vMoteur, t, 0.4);
     SON.moteur.f.frequency.setTargetAtTime(230 + Math.min(320, voitures * 22), t, 0.6);
@@ -1947,6 +2185,86 @@
     chronoSon = 0;
   }
 
+
+  /* ------------------------------ secteurs nommes ------------------------------ */
+  function poserSecteur(x, y) {
+    const deja = etat.secteurs.find((s) => s.x === x && s.y === y);
+    const actuel = deja ? deja.nom : "";
+    let nom = null;
+    try { nom = window.prompt("Nom du secteur (quartier, avenue, place...)", actuel); } catch (e) { nom = null; }
+    if (nom === null) return;
+    nom = String(nom).trim().slice(0, 28);
+    if (!nom) {
+      if (deja) { etat.secteurs = etat.secteurs.filter((s) => s !== deja); etat.modifie = true; sauver(); bulle("Plaque retirée"); }
+      return;
+    }
+    if (deja) deja.nom = nom;
+    else etat.secteurs.push({ x, y, nom });
+    etat.modifie = true; sauver();
+    son(700, 0.09, "triangle", 0.06);
+    bulle("Secteur nommé : " + nom);
+  }
+
+  function dessinerSecteurs() {
+    for (const sc of etat.secteurs) {
+      const p = iso(sc.x, sc.y);
+      ctx.save();
+      ctx.translate(p.x, p.y - 26);
+      ctx.font = "bold 11px system-ui";
+      const w = Math.max(52, ctx.measureText(sc.nom).width + 20);
+      // poteau
+      ctx.strokeStyle = "#7a6a4f"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, 26); ctx.lineTo(0, 12); ctx.stroke();
+      // plaque
+      ctx.fillStyle = "rgba(20,26,38,0.88)";
+      ctx.beginPath();
+      if (ctx.roundRect) { ctx.roundRect(-w / 2, -2, w, 17, 5); ctx.fill(); }
+      else ctx.fillRect(-w / 2, -2, w, 17);
+      ctx.strokeStyle = "#f5cf1b"; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.fillStyle = "#f7f4e8"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(sc.nom, 0, 7);
+      ctx.restore();
+    }
+  }
+
+
+  // animation des espaces verts : ballons, pique-nique, velos
+  function dessinerEspacesVerts() {
+    const verts = etat.batiments.filter((b) => ["parc", "place", "jardin", "roseraie", "zoo"].indexOf(b.cle) >= 0);
+    for (const b of verts) {
+      const p = iso(b.x + (b.w - 1) / 2, b.y + (b.h - 1) / 2);
+      const g = graine(b.x, b.y);
+      // ballon qui rebondit
+      if (g < 0.6) {
+        const t = etat.temps * 2.2 + b.x;
+        const hx = p.x + Math.cos(t * 0.5) * 12;
+        const hy = p.y - 2 - Math.abs(Math.sin(t)) * 11;
+        ctx.fillStyle = "rgba(0,0,0,0.16)";
+        ctx.beginPath(); ctx.ellipse(hx, p.y + 1, 2.4, 1.1, 0, 0, 6.283); ctx.fill();
+        ctx.fillStyle = "#f4f6f8";
+        ctx.beginPath(); ctx.arc(hx, hy, 2.6, 0, 6.283); ctx.fill();
+        ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(hx + 0.7, hy - 0.6, 0.6, 0, 6.283); ctx.fill();
+      }
+      // nappe de pique-nique
+      if (g >= 0.6 && g < 0.85) {
+        ctx.save(); ctx.translate(p.x - 10, p.y + 2);
+        ctx.fillStyle = "#e5484d";
+        ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(0, -3); ctx.lineTo(6, 0); ctx.lineTo(0, 3); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#f4e6c8"; ctx.fillRect(-1.6, -2.4, 3.2, 3.2);
+        ctx.restore();
+      }
+      // velo qui passe
+      if (g >= 0.85) {
+        const t = etat.temps * 0.8 + b.y;
+        const vx = p.x + Math.cos(t) * 16, vy = p.y + Math.sin(t) * 7;
+        ctx.strokeStyle = "#3a3d42"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(vx - 2.4, vy, 1.8, 0, 6.283); ctx.stroke();
+        ctx.beginPath(); ctx.arc(vx + 2.4, vy, 1.8, 0, 6.283); ctx.stroke();
+        ctx.fillStyle = "#2f6fd0"; ctx.fillRect(vx - 2, vy - 3.6, 4, 2.4);
+      }
+    }
+  }
+
   /* ------------------------------ économie ------------------------------ */
   function gagnerXp(n) {
     etat.xp += n;
@@ -1981,7 +2299,8 @@
   }
 
   /* ------------------------------ entités animées ------------------------------ */
-  const routes = () => etat.batiments.filter((b) => b.cle === "route" || b.cle === "rondPoint" || b.cle === "pont");
+  const estVoie = (b) => !!b && ["route", "rondPoint", "pont", "boulevard", "ruelle", "sensUnique"].indexOf(b.cle) >= 0;
+  const routes = () => etat.batiments.filter(estVoie);
   const rails = () => [...etat.rails].map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; });
   const voisinRoute = (x, y) => { const v = G(x, y); return v && (v.cle === "route" || v.cle === "rondPoint" || v.cle === "pont"); };
   const trottoirs = () => etat.batiments.filter((b) => b.cle === "trottoir");
@@ -2010,6 +2329,12 @@
         }
         const opts = [];
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (voisinRoute(v.gx + dx, v.gy + dy)) opts.push([v.gx + dx, v.gy + dy]);
+        // route a sens unique : on garde la direction autorisee
+        const sens = etat.sensUnique && etat.sensUnique[v.gx + "," + v.gy];
+        if (sens) {
+          const nx = v.gx + sens.dx, ny = v.gy + sens.dy;
+          if (voisinRoute(nx, ny)) { v.px = v.gx; v.py = v.gy; v.tx = nx; v.ty = ny; continue; }
+        }
         if (opts.length) {
           const ahead = opts.filter(([x, y]) => !(x === v.px && y === v.py));
           const pool = ahead.length ? ahead : opts;
@@ -2215,8 +2540,8 @@
   // train : se forme quand le réseau de rails est assez long
   // Itineraire continu sur les rails : accepte les 8 directions (diagonales comprises)
   // et relie aussi les rails voisins a moins de 1,5 case, comme on les trace au doigt.
-  function construireItineraire() {
-    const rs = rails();
+  function construireItineraire(listeRail) {
+    const rs = listeRail || rails();
     if (rs.length < 2) return [];
     const k = (p) => p.x + "," + p.y;
     const parCle = new Map(rs.map((p) => [k(p), p]));
@@ -2264,43 +2589,109 @@
     return ordre;
   }
 
-  function majTrain() {
-    const it = construireItineraire();
-    etat.itineraire = it;
-    if (it.length < 2) { etat.train = null; return; }
-    if (!etat.train) {
-      etat.train = { i: 0, t: 0, sens: 1, gx: it[0].x, gy: it[0].y, tx: it[1].x, ty: it[1].y, trace: [], wagons: 3, v: 1.1 };
-    } else {
-      // le reseau a change : on garde le train mais on le replace proprement
-      if (etat.train.i >= it.length - 1) { etat.train.i = 0; etat.train.sens = 1; }
-      etat.train.t = etat.train.t || 0;
+  // une ligne de rail = une composante connexe = une rame
+  function composantesRails(rs) {
+    const vus = new Set();
+    const k = (p) => p.x + "," + p.y;
+    const groupes = [];
+    for (const depart of rs) {
+      if (vus.has(k(depart))) continue;
+      const file = [depart], groupe = [];
+      vus.add(k(depart));
+      while (file.length) {
+        const p = file.pop();
+        groupe.push(p);
+        for (const q of rs) {
+          const cle = k(q);
+          if (vus.has(cle)) continue;
+          if (Math.abs(q.x - p.x) <= 1.5 && Math.abs(q.y - p.y) <= 1.5) { vus.add(cle); file.push(q); }
+        }
+      }
+      groupes.push(groupe);
     }
+    return groupes.filter((g) => g.length >= 2);
+  }
+
+  function signatureReseau(rs) {
+    return rs.map((p) => p.x + "," + p.y).sort().join("|");
+  }
+
+  function majTrain() {
+    const rs = rails();
+    const groupes = composantesRails(rs);
+    const sign = signatureReseau(rs);
+    if (!etat.trains) etat.trains = [];
+
+    // reseau modifie : les rames repartent proprement sur le nouveau trace
+    const change = sign !== etat.signatureRails;
+    etat.signatureRails = sign;
+
+    const itins = [];
+    for (const g of groupes) {
+      const it = construireItineraire(g);
+      if (it.length >= 2) itins.push({ it, g });
+    }
+    etat.itinerairesRails = itins;
+    etat.itineraire = itins.length ? itins[0].it : [];
+
+    // une rame par ligne (5 maximum pour garder de la lisibilite)
+    const voulu = Math.min(itins.length, 5);
+    if (change) {
+      etat.trains = [];
+      for (let i = 0; i < voulu; i++) {
+        const it = itins[i].it;
+        etat.trains.push({
+          ligne: i, i: 0, t: 0, sens: 1,
+          gx: it[0].x, gy: it[0].y, tx: it[1].x, ty: it[1].y,
+          trace: [], wagons: 3, v: 1.05 + (i % 3) * 0.12,
+          coul: ["#c8302f", "#2f6fd0", "#f5cf1b", "#009460", "#8e44ad"][i % 5],
+        });
+      }
+      etat.train = etat.trains[0] || null;
+      return;
+    }
+    while (etat.trains.length > voulu) etat.trains.pop();
+    while (etat.trains.length < voulu) {
+      const it = itins[etat.trains.length].it;
+      etat.trains.push({
+        ligne: etat.trains.length, i: 0, t: 0, sens: 1,
+        gx: it[0].x, gy: it[0].y, tx: it[1].x, ty: it[1].y,
+        trace: [], wagons: 3, v: 1.05,
+        coul: ["#c8302f", "#2f6fd0", "#f5cf1b", "#009460", "#8e44ad"][etat.trains.length % 5],
+      });
+    }
+    // chaque rame suit bien sa propre ligne
+    etat.trains.forEach((tr, i) => {
+      const it = itins[i] ? itins[i].it : null;
+      if (!it) return;
+      tr.it = it;
+      if (tr.i >= it.length - 1) { tr.i = 0; tr.sens = 1; tr.trace.length = 0; }
+    });
+    etat.train = etat.trains[0] || null;
   }
 
   function majTrainBouge(dt) {
-    const tr = etat.train;
-    if (!tr) return;
-    const it = etat.itineraire;
-    if (!it || it.length < 2) { etat.train = null; return; }
-
-    tr.t += dt * (tr.v || 1.1);
-    while (tr.t >= 1) {
-      tr.t -= 1;
-      tr.i += tr.sens;
-      if (tr.i >= it.length - 1) { tr.i = it.length - 1; tr.sens = -1; }
-      if (tr.i <= 0) { tr.i = 0; tr.sens = 1; }
+    const liste = etat.trains || [];
+    for (const tr of liste) {
+      const it = tr.it || (etat.itinerairesRails && etat.itinerairesRails[tr.ligne] ? etat.itinerairesRails[tr.ligne].it : null);
+      if (!it || it.length < 2) continue;
+      tr.it = it;
+      tr.t += dt * (tr.v || 1.1);
+      while (tr.t >= 1) {
+        tr.t -= 1;
+        tr.i += tr.sens;
+        if (tr.i >= it.length - 1) { tr.i = it.length - 1; tr.sens = -1; }
+        if (tr.i <= 0) { tr.i = 0; tr.sens = 1; }
+      }
+      const a = it[tr.i];
+      const b = it[Math.min(it.length - 1, tr.i + tr.sens)] || a;
+      tr.gx = a.x; tr.gy = a.y; tr.tx = b.x; tr.ty = b.y;
+      const fx = tr.gx + (tr.tx - tr.gx) * tr.t;
+      const fy = tr.gy + (tr.ty - tr.gy) * tr.t;
+      tr.trace.push({ x: fx, y: fy });
+      if (tr.trace.length > 300) tr.trace.shift();
     }
-    const a = it[tr.i];
-    const b = it[Math.min(it.length - 1, tr.i + tr.sens)];
-    if (!b) { tr.t = 0; return; }
-    tr.gx = a.x; tr.gy = a.y; tr.tx = b.x; tr.ty = b.y;
-
-    const fx = tr.gx + (tr.tx - tr.gx) * tr.t;
-    const fy = tr.gy + (tr.ty - tr.gy) * tr.t;
-    tr.trace.push({ x: fx, y: fy });
-    if (tr.trace.length > 260) tr.trace.shift();
   }
-
 
   function majAvions(dt) {
     const aero = etat.batiments.filter((b) => b.cle === "aeroport");
@@ -2455,7 +2846,7 @@
     try {
       localStorage.setItem(SAVE, JSON.stringify({
         argent: etat.argent, xp: etat.xp, niveau: etat.niveau, heure: etat.heure,
-        bat: etat.batiments.map((b) => [b.cle, b.x, b.y, b.niv, b.total]), rails: [...etat.rails], eau: [...etat.eau], viaducs: [...etat.viaducs], sable: [...etat.sable], t: Date.now(),
+        bat: etat.batiments.map((b) => [b.cle, b.x, b.y, b.niv, b.total]), rails: [...etat.rails], eau: [...etat.eau], viaducs: [...etat.viaducs], sable: [...etat.sable], remblai: [...etat.remblai], sensUnique: etat.sensUnique, secteurs: etat.secteurs, t: Date.now(),
       }));
     } catch (e) {}
   }
@@ -2487,6 +2878,9 @@
     etat.eau = new Set(data.eau || []);
     etat.viaducs = new Set(data.viaducs || []);
     etat.sable = new Set(data.sable || []);
+    etat.remblai = new Set(data.remblai || []);
+    etat.sensUnique = data.sensUnique || {};
+    etat.secteurs = data.secteurs || [];
     regenererSol();
     recalculer();
     const sec = clamp((Date.now() - (data.t || Date.now())) / 1000, 0, 7200);
@@ -2632,11 +3026,37 @@
 
     // routes au sol
     for (const b of etat.batiments) {
-      if (b.cle !== "route" && b.cle !== "rondPoint" && b.cle !== "pont" && b.cle !== "trottoir") continue;
+      if (!estVoie(b) && b.cle !== "trottoir") continue;
       const p = iso(b.x, b.y);
       ctx.save(); ctx.translate(p.x, p.y);
       if (b.cle === "rondPoint") { losange(ctx, 0, 0, TW + 1, TH + 1, "#4c525c"); losange(ctx, 0, 0, TW * 0.62, TH * 0.62, "#5bb04a"); losange(ctx, 0, 0, TW * 0.32, TH * 0.32, "#6bc258"); arbre(ctx, 0, 0, 8, false); }
       else if (b.cle === "trottoir") dessinerTrottoir(ctx, b.x, b.y);
+      else if (b.cle === "boulevard") {
+        losange(ctx, 0, 0, TW * 1.12, TH * 1.12, "#3f444c");
+        losange(ctx, 0, 0, TW * 0.96, TH * 0.96, "#545a64");
+        ctx.fillStyle = "#efe9d2";
+        losange(ctx, 0, 0, TW * 0.10, TH * 0.34, "#efe9d2");
+      } else if (b.cle === "ruelle") {
+        losange(ctx, 0, 0, TW * 0.92, TH * 0.92, "#6a6459");
+        losange(ctx, 0, 0, TW * 0.82, TH * 0.82, "#8b8577");
+        ctx.strokeStyle = "rgba(60,58,52,0.35)"; ctx.lineWidth = 1;
+        for (let i = -1; i <= 1; i++) {
+          ctx.beginPath();
+          ctx.moveTo(-TW * 0.34, i * TH * 0.22); ctx.lineTo(TW * 0.34, i * TH * 0.22);
+          ctx.stroke();
+        }
+      } else if (b.cle === "sensUnique") {
+        dessinerRoute(ctx, b.x, b.y);
+        const d = etat.sensUnique[b.x + "," + b.y];
+        if (d) {
+          const a = Math.atan2((d.dx + d.dy) * TH / 2, (d.dx - d.dy) * TW / 2);
+          ctx.save(); ctx.rotate(a);
+          ctx.fillStyle = "rgba(250,250,245,0.85)";
+          ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(1, -3); ctx.lineTo(1, -1); ctx.lineTo(-5, -1);
+          ctx.lineTo(-5, 1); ctx.lineTo(1, 1); ctx.lineTo(1, 3); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+      }
       else dessinerRoute(ctx, b.x, b.y);
       ctx.restore();
     }
@@ -2644,7 +3064,7 @@
     // lampadaires et feux
     const nuit = etat.nuit > 0.45;
     for (const b of etat.batiments) {
-      if (b.cle !== "route") continue;
+      if (!estVoie(b)) continue;
       let voisins = 0;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (voisinRoute(b.x + dx, b.y + dy)) voisins++;
       const p = iso(b.x, b.y);
@@ -2662,7 +3082,7 @@
     // tri en profondeur
     const liste = [];
     for (const b of etat.batiments) {
-      if (b.cle === "route" || b.cle === "rondPoint") continue;
+      if (estVoie(b)) continue;
       liste.push({ prof: b.x + (b.w - 1) / 2 + b.y + (b.h - 1) / 2, type: "b", b });
     }
     for (const d of deco) {
@@ -2682,8 +3102,7 @@
       const fx = c.px + (c.tx - c.px) * c.t, fy = c.py + (c.ty - c.py) * c.t;
       liste.push({ prof: fx + fy + 0.7, type: "c", c, fx, fy });
     }
-    if (etat.train) {
-      const tr = etat.train;
+    for (const tr of (etat.trains || [])) {
       const fx = tr.gx + (tr.tx - tr.gx) * tr.t, fy = tr.gy + (tr.ty - tr.gy) * tr.t;
       liste.push({ prof: fx + fy + 0.15, type: "t", tr, fx, fy });
     }
@@ -2746,7 +3165,7 @@
           ctx.save(); ctx.translate(p.x, p.y - 4); ctx.rotate(ang);
           const loco = w === 0;
           ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(-9, 0, 18, 5);
-          ctx.fillStyle = loco ? "#1f4f8a" : "#e8e2d2";
+          ctx.fillStyle = loco ? (tr.coul || "#1f4f8a") : "#e8e2d2";
           ctx.fillRect(-9, -4, 18, 6);
           ctx.fillStyle = loco ? "#ce1126" : "#c9c3b4";
           ctx.fillRect(-9, -4, 18, 1.6);
@@ -2811,11 +3230,13 @@
     }
 
 
+    dessinerSecteurs();
     dessinerSable();
     dessinerBateauxCanal();
     dessinerViaducs();
 
     dessinerNageurs();
+    dessinerEspacesVerts();
     dessinerHelico();
     dessinerExplosions();
 
@@ -3002,11 +3423,17 @@
   }, { passive: false });
 
   function agir(p) {
+    if (etat.modeSecteur) {
+      const g = caseEcran(p.x, p.y);
+      if (g && g.x >= 0 && g.y >= 0 && g.x < N && g.y < N) poserSecteur(g.x, g.y);
+      return;
+    }
     const c = versCase(p.x, p.y);
     if (c.x < 0 || c.y < 0 || c.x >= N || c.y >= N) { bulle("Hors du terrain"); return; }
     const b = G(c.x, c.y);
     if (etat.gomme) {
       const k = c.x + "," + c.y;
+      if (etat.remblai.has(k)) { retirerRemblai(c.x, c.y); return; }
       if (etat.sable.has(k)) { retirerSable(c.x, c.y); return; }
       if (etat.viaducs.has(k)) { retirerViaduc(c.x, c.y); return; }
       if (etat.eau.has(k)) { retirerEau(c.x, c.y); return; }
@@ -3064,6 +3491,13 @@
     $("#jeu").classList.toggle("actif", nom === "jeu");
     if (nom === "jeu") redim();
   }
+
+  $("#btn-secteur").addEventListener("click", () => {
+    etat.modeSecteur = !etat.modeSecteur;
+    etat.selection = null;
+    $("#btn-secteur").style.background = etat.modeSecteur ? "#f5cf1b" : "";
+    bulle(etat.modeSecteur ? "Touche la carte pour nommer un secteur 🏷️" : "Mode nommage terminé");
+  });
 
   $("#btn-son").addEventListener("click", () => {
     SON.mute = !SON.mute;
@@ -3241,6 +3675,15 @@
     placeAuMieux("obelisque", c + 1, c - 3, 6);
     placeAuMieux("arc", c - 4, c - 4, 7);
     placeAuMieux("tourHorloge", c + 3, c - 4, 6);
+    placeAuMieux("aquarium", c + 8, c - 3, 6);
+    placeAuMieux("parcAquatique", c - 6, c - 8, 6);
+    placeAuMieux("grandeRoue", c - 2, c - 5, 5);
+    placeAuMieux("tourGeante", c + 6, c - 5, 5);
+    placeAuMieux("gratteCiel", c + 7, c - 4, 5);
+    placeAuMieux("tourJumelle", c + 2, c - 6, 5);
+    placeAuMieux("zoo", c - 8, c - 3, 6);
+    etat.secteurs.push({ x: c, y: c, nom: "Centre Kaloum" });
+    etat.secteurs.push({ x: c + 7, y: c - 5, nom: "Quartier des Tours" });
     const mine = placeAuMieux("mine", c + 9, c - 8, 10);
     if (mine && casePort) tracerRoute(c + 7, c - 5, mine.x, mine.y + 1);
 
